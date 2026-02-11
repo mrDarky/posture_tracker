@@ -45,6 +45,11 @@ from database import SettingsDatabase
 from posture_detector import PostureDetector
 
 
+# Default application settings (used when database is unavailable)
+DEFAULT_CAMERA_INDEX = 0
+DEFAULT_TILT_THRESHOLD = 15.0
+
+
 # UI Color Theme Palettes
 DARK_THEME = {
     'background': (0.12, 0.12, 0.14, 1),
@@ -212,7 +217,7 @@ class PostureTrackerApp(TabbedPanel):
         camera_spinner.values = available_cameras
         
         # Set default camera from database
-        default_camera = self.db.get_default_camera() if self.db else 0
+        default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
         if f"Camera {default_camera}" in available_cameras:
             camera_spinner.text = f"Camera {default_camera}"
         else:
@@ -222,7 +227,7 @@ class PostureTrackerApp(TabbedPanel):
     
     def get_selected_camera_index(self):
         """Get the selected camera index from the spinner."""
-        default_camera = self.db.get_default_camera() if self.db else 0
+        default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
         if 'camera_spinner' not in self.ids:
             return default_camera
         camera_text = self.ids.camera_spinner.text
@@ -305,7 +310,7 @@ class PostureTrackerApp(TabbedPanel):
         processed_frame, tilt_angle, left_shoulder, right_shoulder = self.detector.process_frame(frame)
         
         # Get threshold from database
-        threshold = self.db.get_tilt_threshold() if self.db else 15.0
+        threshold = self.db.get_tilt_threshold() if self.db else DEFAULT_TILT_THRESHOLD
         
         # Check if posture is bad
         is_bad_posture = tilt_angle > threshold
@@ -471,7 +476,7 @@ class PostureTrackerApp(TabbedPanel):
             )
             container.add_widget(no_camera_label)
         else:
-            default_camera = self.db.get_default_camera() if self.db else 0
+            default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
             
             for cam in cameras:
                 # Create a card-style row for each camera

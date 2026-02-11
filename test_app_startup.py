@@ -34,7 +34,7 @@ try:
     from database import SettingsDatabase
     # Use a temporary file database for testing
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.db') as f:
+    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.db') as f:
         temp_db_path = f.name
     try:
         test_db = SettingsDatabase(temp_db_path)
