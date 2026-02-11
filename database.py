@@ -2,6 +2,10 @@ import sqlite3
 import os
 
 
+# Default settings constants
+DEFAULT_TILT_THRESHOLD = 15.0  # degrees
+
+
 class SettingsDatabase:
     """Database handler for storing application settings."""
     
@@ -45,7 +49,7 @@ class SettingsDatabase:
     
     def get_tilt_threshold(self):
         """Get the tilt threshold setting (default: 15 degrees)."""
-        return float(self.get_setting('tilt_threshold', '15.0'))
+        return float(self.get_setting('tilt_threshold', str(DEFAULT_TILT_THRESHOLD)))
     
     def set_tilt_threshold(self, value):
         """Set the tilt threshold setting."""
