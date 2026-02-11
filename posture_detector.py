@@ -17,17 +17,6 @@ class PostureDetector:
             min_tracking_confidence=0.5
         )
     
-    def calculate_angle(self, point1, point2):
-        """Calculate angle between two points relative to horizontal."""
-        if point1 is None or point2 is None:
-            return 0
-        
-        x_diff = point2[0] - point1[0]
-        y_diff = point2[1] - point1[1]
-        
-        angle = math.degrees(math.atan2(y_diff, x_diff))
-        return abs(angle)
-    
     def calculate_tilt(self, left_shoulder, right_shoulder):
         """Calculate shoulder tilt angle."""
         if left_shoulder is None or right_shoulder is None:
