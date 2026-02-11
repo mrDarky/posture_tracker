@@ -98,6 +98,7 @@
         text: 'Camera'
         background_normal: ''
         background_down: ''
+        background_color: 0.22, 0.22, 0.26, 1
         color: 0.93, 0.93, 0.95, 1
 
         BoxLayout:
@@ -207,6 +208,7 @@
         text: 'Settings'
         background_normal: ''
         background_down: ''
+        background_color: 0.22, 0.22, 0.26, 1
         color: 0.93, 0.93, 0.95, 1
 
         BoxLayout:
@@ -277,6 +279,57 @@
                     text: 'Lower values = stricter monitoring · Higher values = more lenient\nRecommended: 10–20 degrees'
                     size_hint_y: None
                     height: dp(48)
+                    font_size: sp(13)
+                    color: 0.45, 0.45, 0.50, 1
+                    halign: 'left'
+                    valign: 'top'
+                    text_size: self.size
+
+            # ── Theme Card ──
+            Card:
+                orientation: 'vertical'
+                spacing: dp(10)
+                padding: dp(16)
+                size_hint_y: None
+                height: dp(130)
+
+                Label:
+                    text: 'Appearance'
+                    font_size: sp(17)
+                    bold: True
+                    color: 0.93, 0.93, 0.95, 1
+                    size_hint_y: None
+                    height: dp(28)
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    spacing: dp(12)
+                    size_hint_y: None
+                    height: dp(44)
+
+                    Label:
+                        text: 'Theme:'
+                        size_hint_x: 0.35
+                        font_size: sp(15)
+                        color: 0.55, 0.55, 0.60, 1
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
+
+                    ModernSpinner:
+                        id: theme_spinner
+                        text: 'Dark'
+                        values: ['Dark', 'Light']
+                        size_hint_x: 0.65
+                        on_text: app.change_theme(self.text)
+
+                Label:
+                    text: 'Change the appearance of the application'
+                    size_hint_y: None
+                    height: dp(24)
                     font_size: sp(13)
                     color: 0.45, 0.45, 0.50, 1
                     halign: 'left'

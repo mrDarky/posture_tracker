@@ -5,6 +5,7 @@ A Python application using Kivy, OpenCV, and MediaPipe to track and monitor your
 ## Features
 
 - **Tabbed Interface**: Organized UI with Camera and Settings tabs
+- **Light & Dark Theme**: Choose between light and dark appearance modes for comfortable viewing
 - **Camera Selection**: Choose from multiple available cameras/devices
 - **Real-time Posture Detection**: Uses your webcam to monitor shoulder alignment
 - **Visual Feedback**: Displays pose landmarks with dots and lines on video stream
@@ -52,6 +53,7 @@ The application features a **tabbed interface** with two main sections:
   - **Stop Tracking**: Stop posture monitoring
 
 #### Tab 2: Settings
+- **Appearance Theme**: Choose between Dark or Light theme for the application
 - **Tilt Threshold**: Configure the angle threshold (default: 15 degrees)
 - **Camera Management**: 
   - View all available cameras (USB and built-in)
@@ -66,6 +68,7 @@ The application features a **tabbed interface** with two main sections:
 - **Camera Dropdown** (Camera Tab): Select which camera/device to use for video capture
 - **Start Tracking Button**: Begin posture monitoring with the selected camera
 - **Stop Tracking Button**: Stop posture monitoring
+- **Theme Dropdown** (Settings Tab): Switch between Dark and Light theme
 - **Refresh Camera List** (Settings Tab): Re-scan for available cameras
 - **Test Button** (Settings Tab): Test a specific camera's connection
 - **Set Default Button** (Settings Tab): Set a camera as the default for the application
@@ -83,6 +86,12 @@ The application features a **tabbed interface** with two main sections:
    - Real-time tilt angle display
 
 ## Settings
+
+- **Theme**: Choose between Dark (default) and Light appearance modes
+  - Dark theme: Comfortable for low-light environments with light text on dark backgrounds
+  - Light theme: Ideal for bright environments with dark text on light backgrounds
+  - All text has proper contrast for readability in both themes
+  - Theme preference is saved and persists across sessions
 
 - **Tilt Threshold**: The angle (in degrees) at which the app considers your posture bad
   - Default: 15.0 degrees
