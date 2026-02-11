@@ -34,6 +34,12 @@ class PostureTrackerApp(TabbedPanel):
     
     def populate_camera_list(self, dt):
         """Populate the camera selection spinner with available cameras."""
+        # Check if camera_spinner is available in ids
+        if 'camera_spinner' not in self.ids:
+            # Reschedule if not ready yet
+            Clock.schedule_once(self.populate_camera_list, 0.1)
+            return
+        
         camera_spinner = self.ids.camera_spinner
         available_cameras = []
         
@@ -54,6 +60,8 @@ class PostureTrackerApp(TabbedPanel):
     
     def get_selected_camera_index(self):
         """Get the selected camera index from the spinner."""
+        if 'camera_spinner' not in self.ids:
+            return 0
         camera_text = self.ids.camera_spinner.text
         if camera_text.startswith("Camera "):
             try:
@@ -78,7 +86,8 @@ class PostureTrackerApp(TabbedPanel):
             self.is_tracking = True
             self.ids.start_button.disabled = True
             self.ids.stop_button.disabled = False
-            self.ids.camera_spinner.disabled = True
+            if 'camera_spinner' in self.ids:
+                self.ids.camera_spinner.disabled = True
             
             # Schedule frame update
             self.event = Clock.schedule_interval(self.update_frame, 1.0/30.0)
@@ -107,7 +116,8 @@ class PostureTrackerApp(TabbedPanel):
             
             self.ids.start_button.disabled = False
             self.ids.stop_button.disabled = True
-            self.ids.camera_spinner.disabled = False
+            if 'camera_spinner' in self.ids:
+                self.ids.camera_spinner.disabled = False
             Logger.info("Tracking stopped")
     
     def update_frame(self, dt):
