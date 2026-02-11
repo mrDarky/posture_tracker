@@ -113,15 +113,10 @@ def test_theme_colors():
         return False, None, None
 
 
-def test_theme_contrast():
+def test_theme_contrast(DARK_THEME, LIGHT_THEME):
     """Test that themes have proper contrast for readability."""
     print("\nTesting theme contrast...")
     try:
-        # Get themes from previous test
-        _, DARK_THEME, LIGHT_THEME = test_theme_colors()
-        if DARK_THEME is None or LIGHT_THEME is None:
-            return False
-        
         def get_brightness(color):
             """Calculate perceived brightness of a color (0-1)."""
             # Using relative luminance formula
@@ -179,10 +174,9 @@ def main():
     if not result:
         all_passed = False
     
-    # Test theme contrast (reuses themes from previous test)
+    # Test theme contrast (uses themes from previous test)
     if DARK_THEME and LIGHT_THEME:
-        # Call contrast test directly with themes
-        if not test_theme_contrast():
+        if not test_theme_contrast(DARK_THEME, LIGHT_THEME):
             all_passed = False
     
     print("\n" + "=" * 60)

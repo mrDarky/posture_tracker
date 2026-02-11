@@ -253,7 +253,7 @@ class PostureTrackerApp(TabbedPanel):
             self.ids.camera_display.texture = None
             self.ids.tilt_label.text = '0.0°'
             self.ids.status_label.text = 'Stopped'
-            self.ids.status_label.color = NEUTRAL_COLOR
+            self.ids.status_label.color = CURRENT_THEME['neutral']
             
             self.ids.start_button.disabled = False
             self.ids.stop_button.disabled = True
@@ -286,12 +286,12 @@ class PostureTrackerApp(TabbedPanel):
         
         if is_bad_posture:
             self.ids.status_label.text = 'Bad Posture!'
-            self.ids.status_label.color = BAD_COLOR
-            self.ids.tilt_label.color = BAD_COLOR
+            self.ids.status_label.color = CURRENT_THEME['bad']
+            self.ids.tilt_label.color = CURRENT_THEME['bad']
         else:
             self.ids.status_label.text = 'Good Posture'
-            self.ids.status_label.color = GOOD_COLOR
-            self.ids.tilt_label.color = GOOD_COLOR
+            self.ids.status_label.color = CURRENT_THEME['good']
+            self.ids.tilt_label.color = CURRENT_THEME['good']
         
         # Display threshold on frame
         cv2.putText(processed_frame, f'Threshold: {threshold:.1f}', (10, 30),
@@ -325,11 +325,11 @@ class PostureTrackerApp(TabbedPanel):
             threshold = self.validate_threshold(threshold)
             self.db.set_tilt_threshold(threshold)
             self.ids.settings_status.text = f'Settings saved! Threshold: {threshold}°'
-            self.ids.settings_status.color = GOOD_COLOR
+            self.ids.settings_status.color = CURRENT_THEME['good']
             Logger.info(f"Settings saved: threshold={threshold}")
         except ValueError:
             self.ids.settings_status.text = 'Error: Invalid threshold value'
-            self.ids.settings_status.color = BAD_COLOR
+            self.ids.settings_status.color = CURRENT_THEME['bad']
             Logger.error("Invalid threshold value")
     
     def load_settings(self):
@@ -584,7 +584,7 @@ class PostureTrackerApp(TabbedPanel):
         
         if 'settings_status' in self.ids:
             self.ids.settings_status.text = f'{theme_name.capitalize()} theme applied'
-            self.ids.settings_status.color = GOOD_COLOR
+            self.ids.settings_status.color = CURRENT_THEME['good']
         
         Logger.info(f"Theme changed to {theme_name}")
 
