@@ -1,12 +1,36 @@
+import os
+import warnings
+
+# Suppress warnings before importing other modules
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['KIVY_NO_CONSOLELOG'] = '0'
+# Suppress OpenCV warnings
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+warnings.filterwarnings('ignore', category=UserWarning, module='google.protobuf')
+warnings.filterwarnings('ignore', category=FutureWarning, module='mediapipe')
+
 import cv2
+# Set OpenCV log level to ERROR only (suppresses WARN messages)
+# Only available in OpenCV 4.x
+try:
+    cv2.setLogLevel(3)
+except AttributeError:
+    pass  # setLogLevel not available in this OpenCV version
 import numpy as np
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.core.window import Window
 from kivy.logger import Logger
+from kivy.config import Config
+
+# Configure Kivy to not require multitouch input device
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 from database import SettingsDatabase
 from posture_detector import PostureDetector
@@ -67,21 +91,27 @@ class PostureTrackerApp(TabbedPanel):
             available_cameras = ["No cameras found"]
         
         camera_spinner.values = available_cameras
-        camera_spinner.text = available_cameras[0]
+        
+        # Set default camera from database
+        default_camera = self.db.get_default_camera()
+        if f"Camera {default_camera}" in available_cameras:
+            camera_spinner.text = f"Camera {default_camera}"
+        else:
+            camera_spinner.text = available_cameras[0]
         
         Logger.info(f"Found cameras: {available_cameras}")
     
     def get_selected_camera_index(self):
         """Get the selected camera index from the spinner."""
         if 'camera_spinner' not in self.ids:
-            return 0
+            return self.db.get_default_camera()
         camera_text = self.ids.camera_spinner.text
         if camera_text.startswith("Camera "):
             try:
                 return int(camera_text.split()[1])
             except (IndexError, ValueError):
-                return 0
-        return 0
+                return self.db.get_default_camera()
+        return self.db.get_default_camera()
     
     def start_tracking(self):
         """Start video capture and posture tracking."""
@@ -226,6 +256,171 @@ class PostureTrackerApp(TabbedPanel):
         self.ids.threshold_input.text = str(threshold)
         if 'settings_status' in self.ids:
             self.ids.settings_status.text = ''
+    
+    def detect_cameras(self, max_cameras=10):
+        """
+        Detect available cameras and return information about them.
+        
+        Args:
+            max_cameras: Maximum number of camera indices to check (default: 10).
+                        Most systems have 0-2 cameras, but checking up to 10 covers
+                        edge cases with multiple USB cameras or virtual cameras.
+        
+        Returns:
+            List of dicts with camera info: [{'index': 0, 'name': 'Camera 0', 'available': True, 'info': '...'}]
+        """
+        cameras = []
+        
+        for i in range(max_cameras):
+            cap = cv2.VideoCapture(i)
+            
+            if cap.isOpened():
+                # Try to get camera properties
+                width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                
+                # Try to read a frame to verify it's working
+                ret, frame = cap.read()
+                
+                camera_info = {
+                    'index': i,
+                    'name': f'Camera {i}',
+                    'available': ret,
+                    'info': f'{int(width)}x{int(height)}' if ret else 'Failed to read frame'
+                }
+                cameras.append(camera_info)
+                cap.release()
+            
+        return cameras
+    
+    def refresh_camera_list(self):
+        """Refresh the camera list in the settings tab."""
+        if 'camera_list_container' not in self.ids:
+            Logger.warning("camera_list_container not yet available")
+            return
+        
+        if 'camera_scan_status' in self.ids:
+            self.ids.camera_scan_status.text = 'Scanning...'
+            self.ids.camera_scan_status.color = (1, 1, 0, 1)  # Yellow
+        
+        # Run camera detection (this might take a moment)
+        Clock.schedule_once(lambda dt: self._update_camera_list(), 0.1)
+    
+    def _update_camera_list(self):
+        """Update the camera list UI with detected cameras."""
+        cameras = self.detect_cameras()
+        
+        # Clear existing camera list
+        container = self.ids.camera_list_container
+        container.clear_widgets()
+        
+        if not cameras:
+            no_camera_label = Label(
+                text='No cameras detected',
+                size_hint_y=None,
+                height=40,
+                color=(1, 0, 0, 1)
+            )
+            container.add_widget(no_camera_label)
+        else:
+            default_camera = self.db.get_default_camera()
+            
+            for cam in cameras:
+                # Create a horizontal box for each camera
+                cam_box = BoxLayout(
+                    orientation='horizontal',
+                    size_hint_y=None,
+                    height=60,
+                    spacing=5,
+                    padding=[5, 5]
+                )
+                
+                # Camera info label
+                status_color = GOOD_COLOR if cam['available'] else BAD_COLOR
+                status_text = '✓ Working' if cam['available'] else '✗ Not available'
+                is_default = ' [Default]' if cam['index'] == default_camera else ''
+                
+                info_label = Label(
+                    text=f"{cam['name']}{is_default}\n{cam['info']} - {status_text}",
+                    size_hint_x=0.5,
+                    color=status_color,
+                    halign='left',
+                    valign='middle'
+                )
+                info_label.bind(size=info_label.setter('text_size'))
+                
+                # Test button
+                test_btn = Button(
+                    text='Test',
+                    size_hint_x=0.25,
+                    disabled=not cam['available'],
+                    background_color=(0.3, 0.6, 0.9, 1)
+                )
+                test_btn.bind(on_press=lambda btn, idx=cam['index']: self.test_camera(idx))
+                
+                # Set as default button
+                default_btn = Button(
+                    text='Set Default',
+                    size_hint_x=0.25,
+                    disabled=not cam['available'] or cam['index'] == default_camera,
+                    background_color=(0, 0.7, 0.3, 1)
+                )
+                default_btn.bind(on_press=lambda btn, idx=cam['index']: self.set_default_camera(idx))
+                
+                cam_box.add_widget(info_label)
+                cam_box.add_widget(test_btn)
+                cam_box.add_widget(default_btn)
+                
+                container.add_widget(cam_box)
+        
+        if 'camera_scan_status' in self.ids:
+            self.ids.camera_scan_status.text = f'Found {len(cameras)} camera(s)'
+            self.ids.camera_scan_status.color = GOOD_COLOR if cameras else BAD_COLOR
+    
+    def test_camera(self, camera_index):
+        """Test a camera by trying to capture a frame."""
+        if 'camera_scan_status' in self.ids:
+            self.ids.camera_scan_status.text = f'Testing Camera {camera_index}...'
+            self.ids.camera_scan_status.color = (1, 1, 0, 1)  # Yellow
+        
+        cap = cv2.VideoCapture(camera_index)
+        
+        if cap.isOpened():
+            ret, frame = cap.read()
+            cap.release()
+            
+            if ret:
+                if 'camera_scan_status' in self.ids:
+                    self.ids.camera_scan_status.text = f'Camera {camera_index} test successful!'
+                    self.ids.camera_scan_status.color = GOOD_COLOR
+                Logger.info(f"Camera {camera_index} test successful")
+            else:
+                if 'camera_scan_status' in self.ids:
+                    self.ids.camera_scan_status.text = f'Camera {camera_index} failed to capture frame'
+                    self.ids.camera_scan_status.color = BAD_COLOR
+                Logger.error(f"Camera {camera_index} failed to capture frame")
+        else:
+            if 'camera_scan_status' in self.ids:
+                self.ids.camera_scan_status.text = f'Camera {camera_index} could not be opened'
+                self.ids.camera_scan_status.color = BAD_COLOR
+            Logger.error(f"Camera {camera_index} could not be opened")
+    
+    def set_default_camera(self, camera_index):
+        """Set the default camera for the application."""
+        self.db.set_default_camera(camera_index)
+        
+        if 'camera_scan_status' in self.ids:
+            self.ids.camera_scan_status.text = f'Camera {camera_index} set as default'
+            self.ids.camera_scan_status.color = GOOD_COLOR
+        
+        Logger.info(f"Default camera set to {camera_index}")
+        
+        # Update the camera spinner in the Camera tab
+        if 'camera_spinner' in self.ids:
+            self.ids.camera_spinner.text = f"Camera {camera_index}"
+        
+        # Refresh the camera list to update the UI
+        Clock.schedule_once(lambda dt: self._update_camera_list(), 0.5)
 
 
 class MainApp(App):
@@ -238,6 +433,8 @@ class MainApp(App):
         self.root = PostureTrackerApp()
         # Load settings when app starts (give more time for widget initialization)
         Clock.schedule_once(lambda dt: self.root.load_settings(), 0.5)
+        # Populate camera list in settings tab
+        Clock.schedule_once(lambda dt: self.root.refresh_camera_list(), 1.0)
         return self.root
     
     def start_tracking(self):
@@ -251,6 +448,10 @@ class MainApp(App):
     def save_settings(self):
         """Save settings from button."""
         self.root.save_settings()
+    
+    def refresh_camera_list(self):
+        """Refresh camera list from button."""
+        self.root.refresh_camera_list()
     
     def on_stop(self):
         """Clean up when app is closing."""

@@ -2,6 +2,22 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import math
+import os
+import warnings
+
+# Suppress TensorFlow/MediaPipe warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+warnings.filterwarnings('ignore', category=UserWarning, module='google.protobuf')
+warnings.filterwarnings('ignore', category=FutureWarning, module='mediapipe')
+
+# Set OpenCV log level to ERROR only (suppresses WARN messages)
+# Only available in OpenCV 4.x
+try:
+    cv2.setLogLevel(3)
+except AttributeError:
+    pass  # setLogLevel not available in this OpenCV version
 
 
 class PostureDetector:
