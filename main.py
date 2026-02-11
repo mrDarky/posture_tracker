@@ -21,6 +21,10 @@ BAD_COLOR = (1, 0, 0, 1)
 class PostureTrackerApp(TabbedPanel):
     """Main application layout with tabs."""
     
+    # Constants for widget initialization
+    WIDGET_INIT_RETRY_DELAY = 0.2  # seconds
+    MAX_WIDGET_INIT_RETRIES = 25  # max 5 seconds (25 * 0.2)
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.db = SettingsDatabase()
@@ -29,6 +33,7 @@ class PostureTrackerApp(TabbedPanel):
         self.is_tracking = False
         self.event = None
         self._camera_list_retry_count = 0
+        self._settings_load_retry_count = 0
         
         # Populate camera list after UI is built
         Clock.schedule_once(self.populate_camera_list, 0.1)
@@ -200,10 +205,17 @@ class PostureTrackerApp(TabbedPanel):
         """Load current settings into the settings tab."""
         # Check if threshold_input is available
         if 'threshold_input' not in self.ids:
-            Logger.warning("threshold_input not yet available, will retry")
-            # Retry loading settings after a short delay
-            Clock.schedule_once(lambda dt: self.load_settings(), 0.2)
+            # Retry loading settings after a short delay (with max retry limit)
+            self._settings_load_retry_count += 1
+            if self._settings_load_retry_count < self.MAX_WIDGET_INIT_RETRIES:
+                Logger.warning(f"threshold_input not yet available, retry {self._settings_load_retry_count}/{self.MAX_WIDGET_INIT_RETRIES}")
+                Clock.schedule_once(lambda dt: self.load_settings(), self.WIDGET_INIT_RETRY_DELAY)
+            else:
+                Logger.error("threshold_input not available after maximum retries")
             return
+        
+        # Reset retry counter on success
+        self._settings_load_retry_count = 0
         
         threshold = self.db.get_tilt_threshold()
         self.ids.threshold_input.text = str(threshold)
