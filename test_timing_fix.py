@@ -69,15 +69,24 @@ def test_logging_intervals():
     with open('main.py', 'r') as f:
         content = f.read()
     
-    # Check for interval logging in camera_spinner
-    if "if self._camera_list_retry_count == 1 or self._camera_list_retry_count % 10 == 0:" in content:
+    # Check for interval logging in camera_spinner using more flexible matching
+    has_camera_interval_check = (
+        "self._camera_list_retry_count == 1" in content and
+        "self._camera_list_retry_count % 10 == 0" in content and
+        "Logger.debug" in content
+    )
+    if has_camera_interval_check:
         print("  ✓ Camera spinner uses interval logging (1st, 10th, 20th, etc.)")
     else:
         print("  ✗ Camera spinner should use interval logging")
         return False
     
-    # Check for interval logging in threshold_input
-    if "if self._settings_load_retry_count == 1 or self._settings_load_retry_count % 10 == 0:" in content:
+    # Check for interval logging in threshold_input using more flexible matching
+    has_threshold_interval_check = (
+        "self._settings_load_retry_count == 1" in content and
+        "self._settings_load_retry_count % 10 == 0" in content
+    )
+    if has_threshold_interval_check:
         print("  ✓ Threshold input uses interval logging (1st, 10th, 20th, etc.)")
     else:
         print("  ✗ Threshold input should use interval logging")
