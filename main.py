@@ -40,15 +40,51 @@ from database import SettingsDatabase
 from posture_detector import PostureDetector
 
 
-# UI Color constants — modern dark-theme palette
-NEUTRAL_COLOR = (0.55, 0.55, 0.60, 1)
-GOOD_COLOR = (0.18, 0.80, 0.44, 1)
-BAD_COLOR = (0.91, 0.30, 0.24, 1)
-SURFACE_COLOR = (0.17, 0.17, 0.20, 1)
-TEXT_COLOR = (0.93, 0.93, 0.95, 1)
-TEXT_MUTED_COLOR = (0.55, 0.55, 0.60, 1)
-ACCENT_COLOR = (0.25, 0.56, 1.0, 1)
-SCANNING_COLOR = (1.0, 0.76, 0.03, 1)
+# UI Color Theme Palettes
+DARK_THEME = {
+    'background': (0.12, 0.12, 0.14, 1),
+    'surface': (0.17, 0.17, 0.20, 1),
+    'surface_variant': (0.22, 0.22, 0.26, 1),
+    'text': (0.93, 0.93, 0.95, 1),
+    'text_muted': (0.55, 0.55, 0.60, 1),
+    'text_dimmed': (0.45, 0.45, 0.50, 1),
+    'neutral': (0.55, 0.55, 0.60, 1),
+    'good': (0.18, 0.80, 0.44, 1),
+    'bad': (0.91, 0.30, 0.24, 1),
+    'accent': (0.25, 0.56, 1.0, 1),
+    'scanning': (1.0, 0.76, 0.03, 1),
+    'tab_bg': (0.22, 0.22, 0.26, 1),
+    'tab_text': (0.93, 0.93, 0.95, 1),
+}
+
+LIGHT_THEME = {
+    'background': (0.95, 0.95, 0.97, 1),
+    'surface': (1.0, 1.0, 1.0, 1),
+    'surface_variant': (0.90, 0.90, 0.92, 1),
+    'text': (0.13, 0.13, 0.15, 1),
+    'text_muted': (0.45, 0.45, 0.50, 1),
+    'text_dimmed': (0.55, 0.55, 0.60, 1),
+    'neutral': (0.45, 0.45, 0.50, 1),
+    'good': (0.15, 0.68, 0.38, 1),
+    'bad': (0.85, 0.26, 0.22, 1),
+    'accent': (0.20, 0.48, 0.90, 1),
+    'scanning': (0.92, 0.70, 0.02, 1),
+    'tab_bg': (0.85, 0.85, 0.87, 1),
+    'tab_text': (0.13, 0.13, 0.15, 1),
+}
+
+# Current theme - will be set during app initialization
+CURRENT_THEME = DARK_THEME
+
+# UI Color constants — for backward compatibility
+NEUTRAL_COLOR = CURRENT_THEME['neutral']
+GOOD_COLOR = CURRENT_THEME['good']
+BAD_COLOR = CURRENT_THEME['bad']
+SURFACE_COLOR = CURRENT_THEME['surface']
+TEXT_COLOR = CURRENT_THEME['text']
+TEXT_MUTED_COLOR = CURRENT_THEME['text_muted']
+ACCENT_COLOR = CURRENT_THEME['accent']
+SCANNING_COLOR = CURRENT_THEME['scanning']
 
 
 class PostureTrackerApp(TabbedPanel):
@@ -61,6 +97,10 @@ class PostureTrackerApp(TabbedPanel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.db = SettingsDatabase()
+        
+        # Load and apply theme before creating detector
+        self.apply_theme(self.db.get_theme())
+        
         self.detector = PostureDetector()
         self.capture = None
         self.is_tracking = False
@@ -70,6 +110,55 @@ class PostureTrackerApp(TabbedPanel):
         
         # Populate camera list after UI is built (give more time for widget initialization)
         Clock.schedule_once(self.populate_camera_list, 0.5)
+    
+    def apply_theme(self, theme_name):
+        """Apply a theme to the application."""
+        global CURRENT_THEME, NEUTRAL_COLOR, GOOD_COLOR, BAD_COLOR, SURFACE_COLOR
+        global TEXT_COLOR, TEXT_MUTED_COLOR, ACCENT_COLOR, SCANNING_COLOR
+        
+        if theme_name == 'light':
+            CURRENT_THEME = LIGHT_THEME
+        else:
+            CURRENT_THEME = DARK_THEME
+        
+        # Update global color constants
+        NEUTRAL_COLOR = CURRENT_THEME['neutral']
+        GOOD_COLOR = CURRENT_THEME['good']
+        BAD_COLOR = CURRENT_THEME['bad']
+        SURFACE_COLOR = CURRENT_THEME['surface']
+        TEXT_COLOR = CURRENT_THEME['text']
+        TEXT_MUTED_COLOR = CURRENT_THEME['text_muted']
+        ACCENT_COLOR = CURRENT_THEME['accent']
+        SCANNING_COLOR = CURRENT_THEME['scanning']
+        
+        # Update window background
+        Window.clearcolor = CURRENT_THEME['background']
+        
+        # Update UI colors if widgets exist
+        self.update_ui_colors()
+    
+    def update_ui_colors(self):
+        """Update colors of all UI elements to match current theme."""
+        # Update main background
+        self.background_color = CURRENT_THEME['background']
+        
+        # Update widget colors if they exist
+        if hasattr(self, 'ids'):
+            # Update status labels
+            if 'status_label' in self.ids and not self.is_tracking:
+                self.ids.status_label.color = CURRENT_THEME['neutral']
+            if 'tilt_label' in self.ids and not self.is_tracking:
+                self.ids.tilt_label.color = CURRENT_THEME['neutral']
+            
+            # Update settings status
+            if 'settings_status' in self.ids:
+                # Keep existing status color if it's showing a message
+                if not self.ids.settings_status.text:
+                    self.ids.settings_status.color = CURRENT_THEME['good']
+        
+        # Force canvas redraw
+        self.canvas.ask_update()
+
     
     def populate_camera_list(self, dt):
         """Populate the camera selection spinner with available cameras."""
@@ -263,6 +352,12 @@ class PostureTrackerApp(TabbedPanel):
         
         threshold = self.db.get_tilt_threshold()
         self.ids.threshold_input.text = str(threshold)
+        
+        # Load theme setting
+        if 'theme_spinner' in self.ids:
+            theme = self.db.get_theme()
+            self.ids.theme_spinner.text = theme.capitalize()
+        
         if 'settings_status' in self.ids:
             self.ids.settings_status.text = ''
     
@@ -310,7 +405,7 @@ class PostureTrackerApp(TabbedPanel):
         
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = 'Scanning...'
-            self.ids.camera_scan_status.color = SCANNING_COLOR
+            self.ids.camera_scan_status.color = CURRENT_THEME['scanning']
         
         # Run camera detection (this might take a moment)
         Clock.schedule_once(lambda dt: self._update_camera_list(), 0.1)
@@ -331,7 +426,7 @@ class PostureTrackerApp(TabbedPanel):
                 text='No cameras detected',
                 size_hint_y=None,
                 height=dp(40),
-                color=BAD_COLOR,
+                color=CURRENT_THEME['bad'],
                 font_size=sp(14),
             )
             container.add_widget(no_camera_label)
@@ -349,13 +444,13 @@ class PostureTrackerApp(TabbedPanel):
                 )
                 # Draw rounded background for camera row
                 with cam_box.canvas.before:
-                    Color(0.22, 0.22, 0.26, 1)
+                    Color(*CURRENT_THEME['surface_variant'])
                     bg_rect = RoundedRectangle(pos=cam_box.pos, size=cam_box.size, radius=[dp(8)])
                 cam_box.bind(pos=lambda inst, val, r=bg_rect: setattr(r, 'pos', val))
                 cam_box.bind(size=lambda inst, val, r=bg_rect: setattr(r, 'size', val))
                 
                 # Camera info label
-                status_color = GOOD_COLOR if cam['available'] else BAD_COLOR
+                status_color = CURRENT_THEME['good'] if cam['available'] else CURRENT_THEME['bad']
                 status_icon = '●' if cam['available'] else '○'
                 is_default = '  ★' if cam['index'] == default_camera else ''
                 
@@ -379,12 +474,12 @@ class PostureTrackerApp(TabbedPanel):
                     background_normal='',
                     background_down='',
                     background_color=(0, 0, 0, 0),
-                    color=TEXT_COLOR,
+                    color=CURRENT_THEME['text'],
                     font_size=sp(13),
                     bold=True,
                 )
                 with test_btn.canvas.before:
-                    Color(*(ACCENT_COLOR[:3]), 1)
+                    Color(*(CURRENT_THEME['accent'][:3]), 1)
                     test_bg = RoundedRectangle(pos=test_btn.pos, size=test_btn.size, radius=[dp(8)])
                 test_btn.bind(pos=lambda inst, val, r=test_bg: setattr(r, 'pos', val))
                 test_btn.bind(size=lambda inst, val, r=test_bg: setattr(r, 'size', val))
@@ -400,18 +495,19 @@ class PostureTrackerApp(TabbedPanel):
                     background_normal='',
                     background_down='',
                     background_color=(0, 0, 0, 0),
-                    color=TEXT_COLOR,
+                    color=CURRENT_THEME['text'],
                     font_size=sp(13),
                     bold=True,
                 )
-                btn_color = (0.28, 0.28, 0.32, 1) if default_btn.disabled else GOOD_COLOR
+                # Use surface variant color when disabled, good color when enabled
+                btn_color = CURRENT_THEME['surface_variant'] if default_btn.disabled else CURRENT_THEME['good']
                 with default_btn.canvas.before:
                     def_color = Color(*btn_color)
                     def_bg = RoundedRectangle(pos=default_btn.pos, size=default_btn.size, radius=[dp(8)])
                 default_btn.bind(pos=lambda inst, val, r=def_bg: setattr(r, 'pos', val))
                 default_btn.bind(size=lambda inst, val, r=def_bg: setattr(r, 'size', val))
                 default_btn.bind(disabled=lambda inst, val, c=def_color: setattr(
-                    c, 'rgba', (0.28, 0.28, 0.32, 1) if val else GOOD_COLOR))
+                    c, 'rgba', CURRENT_THEME['surface_variant'] if val else CURRENT_THEME['good']))
                 default_btn.bind(on_press=lambda btn, idx=cam['index']: self.set_default_camera(idx))
                 
                 cam_box.add_widget(info_label)
@@ -422,13 +518,13 @@ class PostureTrackerApp(TabbedPanel):
         
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = f'Found {len(cameras)} camera(s)'
-            self.ids.camera_scan_status.color = GOOD_COLOR if cameras else BAD_COLOR
+            self.ids.camera_scan_status.color = CURRENT_THEME['good'] if cameras else CURRENT_THEME['bad']
     
     def test_camera(self, camera_index):
         """Test a camera by trying to capture a frame."""
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = f'Testing Camera {camera_index}...'
-            self.ids.camera_scan_status.color = SCANNING_COLOR
+            self.ids.camera_scan_status.color = CURRENT_THEME['scanning']
         
         cap = cv2.VideoCapture(camera_index)
         
@@ -439,17 +535,17 @@ class PostureTrackerApp(TabbedPanel):
             if ret:
                 if 'camera_scan_status' in self.ids:
                     self.ids.camera_scan_status.text = f'Camera {camera_index} test successful!'
-                    self.ids.camera_scan_status.color = GOOD_COLOR
+                    self.ids.camera_scan_status.color = CURRENT_THEME['good']
                 Logger.info(f"Camera {camera_index} test successful")
             else:
                 if 'camera_scan_status' in self.ids:
                     self.ids.camera_scan_status.text = f'Camera {camera_index} failed to capture frame'
-                    self.ids.camera_scan_status.color = BAD_COLOR
+                    self.ids.camera_scan_status.color = CURRENT_THEME['bad']
                 Logger.error(f"Camera {camera_index} failed to capture frame")
         else:
             if 'camera_scan_status' in self.ids:
                 self.ids.camera_scan_status.text = f'Camera {camera_index} could not be opened'
-                self.ids.camera_scan_status.color = BAD_COLOR
+                self.ids.camera_scan_status.color = CURRENT_THEME['bad']
             Logger.error(f"Camera {camera_index} could not be opened")
     
     def set_default_camera(self, camera_index):
@@ -458,7 +554,7 @@ class PostureTrackerApp(TabbedPanel):
         
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = f'Camera {camera_index} set as default'
-            self.ids.camera_scan_status.color = GOOD_COLOR
+            self.ids.camera_scan_status.color = CURRENT_THEME['good']
         
         Logger.info(f"Default camera set to {camera_index}")
         
@@ -468,6 +564,29 @@ class PostureTrackerApp(TabbedPanel):
         
         # Refresh the camera list to update the UI
         Clock.schedule_once(lambda dt: self._update_camera_list(), 0.5)
+    
+    def change_theme(self, theme_name):
+        """Change the application theme."""
+        theme_name = theme_name.lower()
+        if theme_name not in ['dark', 'light']:
+            Logger.error(f"Invalid theme: {theme_name}")
+            return
+        
+        # Save theme to database
+        self.db.set_theme(theme_name)
+        
+        # Apply theme
+        self.apply_theme(theme_name)
+        
+        # Refresh camera list to update colors
+        if 'camera_list_container' in self.ids:
+            self._update_camera_list()
+        
+        if 'settings_status' in self.ids:
+            self.ids.settings_status.text = f'{theme_name.capitalize()} theme applied'
+            self.ids.settings_status.color = GOOD_COLOR
+        
+        Logger.info(f"Theme changed to {theme_name}")
 
 
 class MainApp(App):
@@ -479,7 +598,7 @@ class MainApp(App):
         Window.size = (800, 600)
         Window.minimum_width = 480
         Window.minimum_height = 400
-        Window.clearcolor = (0.12, 0.12, 0.14, 1)
+        # Theme will be set by apply_theme in PostureTrackerApp.__init__
         self.root = PostureTrackerApp()
         # Load settings when app starts (give more time for widget initialization)
         Clock.schedule_once(lambda dt: self.root.load_settings(), 0.5)
@@ -502,6 +621,10 @@ class MainApp(App):
     def refresh_camera_list(self):
         """Refresh camera list from button."""
         self.root.refresh_camera_list()
+    
+    def change_theme(self, theme_name):
+        """Change theme from button."""
+        self.root.change_theme(theme_name)
     
     def on_stop(self):
         """Clean up when app is closing."""

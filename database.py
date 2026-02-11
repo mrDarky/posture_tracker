@@ -5,6 +5,7 @@ import os
 # Default settings constants
 DEFAULT_TILT_THRESHOLD = 15.0  # degrees
 DEFAULT_CAMERA_INDEX = 0  # default camera
+DEFAULT_THEME = 'dark'  # default theme: 'dark' or 'light'
 
 
 class SettingsDatabase:
@@ -63,3 +64,13 @@ class SettingsDatabase:
     def set_default_camera(self, value):
         """Set the default camera index setting."""
         self.set_setting('default_camera', str(value))
+    
+    def get_theme(self):
+        """Get the theme setting (default: 'dark')."""
+        return self.get_setting('theme', DEFAULT_THEME)
+    
+    def set_theme(self, value):
+        """Set the theme setting ('dark' or 'light')."""
+        if value not in ['dark', 'light']:
+            raise ValueError("Theme must be 'dark' or 'light'")
+        self.set_setting('theme', value)
