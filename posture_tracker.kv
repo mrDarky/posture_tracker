@@ -1,104 +1,151 @@
 #:kivy 2.3.0
 
 <PostureTrackerApp>:
-    orientation: 'vertical'
-    padding: 10
-    spacing: 10
-
-    BoxLayout:
-        size_hint_y: 0.9
-        orientation: 'vertical'
-        
-        Image:
-            id: camera_display
-            size_hint_y: 0.85
-            allow_stretch: True
-            keep_ratio: True
-        
-        BoxLayout:
-            size_hint_y: 0.15
-            orientation: 'horizontal'
-            spacing: 10
-            padding: [0, 10, 0, 0]
-            
-            Label:
-                text: 'Tilt Angle:'
-                size_hint_x: 0.3
-                font_size: '16sp'
-            
-            Label:
-                id: tilt_label
-                text: '0.0°'
-                size_hint_x: 0.3
-                font_size: '16sp'
-                color: 0, 1, 0, 1
-            
-            Label:
-                id: status_label
-                text: 'Good Posture'
-                size_hint_x: 0.4
-                font_size: '16sp'
-                color: 0, 1, 0, 1
-
-    BoxLayout:
-        size_hint_y: 0.1
-        orientation: 'horizontal'
-        spacing: 10
-        
-        Button:
-            id: start_button
-            text: 'Start'
-            font_size: '18sp'
-            on_press: app.start_tracking()
-            disabled: False
-        
-        Button:
-            id: stop_button
-            text: 'Stop'
-            font_size: '18sp'
-            on_press: app.stop_tracking()
-            disabled: True
-        
-        Button:
-            text: 'Settings'
-            font_size: '18sp'
-            on_press: app.show_settings()
-
-<SettingsPopup>:
-    title: 'Settings'
-    size_hint: 0.8, 0.4
-    auto_dismiss: True
+    do_default_tab: False
+    tab_pos: 'top_mid'
     
-    BoxLayout:
-        orientation: 'vertical'
-        padding: 10
-        spacing: 10
+    TabbedPanelItem:
+        text: 'Camera'
         
         BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: 0.5
+            orientation: 'vertical'
+            padding: 10
             spacing: 10
+            
+            # Camera selection
+            BoxLayout:
+                size_hint_y: 0.1
+                orientation: 'horizontal'
+                spacing: 10
+                
+                Label:
+                    text: 'Select Camera:'
+                    size_hint_x: 0.3
+                    font_size: '16sp'
+                
+                Spinner:
+                    id: camera_spinner
+                    text: 'Detecting cameras...'
+                    size_hint_x: 0.7
+                    font_size: '16sp'
+                    values: ['Detecting cameras...']
+            
+            # Video display area
+            BoxLayout:
+                size_hint_y: 0.7
+                orientation: 'vertical'
+                
+                Image:
+                    id: camera_display
+                    size_hint_y: 0.85
+                    allow_stretch: True
+                    keep_ratio: True
+                
+                BoxLayout:
+                    size_hint_y: 0.15
+                    orientation: 'horizontal'
+                    spacing: 10
+                    padding: [0, 10, 0, 0]
+                    
+                    Label:
+                        text: 'Tilt Angle:'
+                        size_hint_x: 0.3
+                        font_size: '16sp'
+                    
+                    Label:
+                        id: tilt_label
+                        text: '0.0°'
+                        size_hint_x: 0.3
+                        font_size: '16sp'
+                        color: 0.5, 0.5, 0.5, 1
+                    
+                    Label:
+                        id: status_label
+                        text: 'Stopped'
+                        size_hint_x: 0.4
+                        font_size: '16sp'
+                        color: 0.5, 0.5, 0.5, 1
+            
+            # Control buttons
+            BoxLayout:
+                size_hint_y: 0.2
+                orientation: 'horizontal'
+                spacing: 10
+                
+                Button:
+                    id: start_button
+                    text: 'Start Tracking'
+                    font_size: '18sp'
+                    on_press: app.start_tracking()
+                    disabled: False
+                    background_color: 0, 0.7, 0, 1
+                
+                Button:
+                    id: stop_button
+                    text: 'Stop Tracking'
+                    font_size: '18sp'
+                    on_press: app.stop_tracking()
+                    disabled: True
+                    background_color: 0.7, 0, 0, 1
+    
+    TabbedPanelItem:
+        text: 'Settings'
+        
+        BoxLayout:
+            orientation: 'vertical'
+            padding: 20
+            spacing: 20
             
             Label:
-                text: 'Tilt Threshold (degrees):'
-                size_hint_x: 0.6
+                text: 'Posture Tracking Settings'
+                font_size: '24sp'
+                size_hint_y: 0.2
+                bold: True
             
-            TextInput:
-                id: threshold_input
-                text: '15.0'
-                multiline: False
-                input_filter: 'float'
-                size_hint_x: 0.4
-        
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: 0.5
-            spacing: 10
+            BoxLayout:
+                orientation: 'vertical'
+                spacing: 10
+                size_hint_y: 0.4
+                
+                BoxLayout:
+                    orientation: 'horizontal'
+                    spacing: 10
+                    size_hint_y: None
+                    height: 50
+                    
+                    Label:
+                        text: 'Tilt Threshold (degrees):'
+                        size_hint_x: 0.6
+                        font_size: '18sp'
+                    
+                    TextInput:
+                        id: threshold_input
+                        text: '15.0'
+                        multiline: False
+                        input_filter: 'float'
+                        size_hint_x: 0.4
+                        font_size: '18sp'
+                
+                Label:
+                    text: 'Lower values = stricter posture monitoring\nHigher values = more lenient monitoring\nRecommended range: 10-20 degrees'
+                    size_hint_y: None
+                    height: 80
+                    font_size: '14sp'
+                    color: 0.7, 0.7, 0.7, 1
+                    halign: 'left'
+                    valign: 'top'
+                    text_size: self.size
             
             Button:
-                text: 'Save'
-                on_press: root.save_settings()
+                text: 'Save Settings'
+                font_size: '20sp'
+                size_hint_y: 0.2
+                on_press: app.save_settings()
+                background_color: 0, 0.5, 0.8, 1
             
-            Button:
-                text: 'Cancel'
-                on_press: root.dismiss()
+            Label:
+                id: settings_status
+                text: ''
+                font_size: '16sp'
+                size_hint_y: 0.2
+                color: 0, 1, 0, 1
