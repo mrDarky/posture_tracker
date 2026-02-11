@@ -46,7 +46,7 @@ try:
             
             # Verify is_tracking exists and is False
             assert hasattr(app, 'is_tracking'), "is_tracking attribute missing"
-            assert app.is_tracking == False, "is_tracking should be False initially"
+            assert app.is_tracking is False, "is_tracking should be False initially"
             
             print("   ✓ is_tracking properly initialized before apply_theme")
     
