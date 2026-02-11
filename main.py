@@ -28,6 +28,7 @@ class PostureTrackerApp(TabbedPanel):
         self.capture = None
         self.is_tracking = False
         self.event = None
+        self._camera_list_retry_count = 0
         
         # Populate camera list after UI is built
         Clock.schedule_once(self.populate_camera_list, 0.1)
@@ -36,8 +37,12 @@ class PostureTrackerApp(TabbedPanel):
         """Populate the camera selection spinner with available cameras."""
         # Check if camera_spinner is available in ids
         if 'camera_spinner' not in self.ids:
-            # Reschedule if not ready yet
-            Clock.schedule_once(self.populate_camera_list, 0.1)
+            # Reschedule if not ready yet (max 50 retries = 5 seconds)
+            self._camera_list_retry_count += 1
+            if self._camera_list_retry_count < 50:
+                Clock.schedule_once(self.populate_camera_list, 0.1)
+            else:
+                Logger.error("Camera spinner not available after 5 seconds")
             return
         
         camera_spinner = self.ids.camera_spinner
