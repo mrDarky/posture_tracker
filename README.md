@@ -53,15 +53,22 @@ The application features a **tabbed interface** with two main sections:
 
 #### Tab 2: Settings
 - **Tilt Threshold**: Configure the angle threshold (default: 15 degrees)
+- **Camera Management**: 
+  - View all available cameras (USB and built-in)
+  - Test camera connections
+  - Set default camera
+  - Refresh camera list
 - **Save Button**: Save your configuration
 - **Help Text**: Clear instructions and recommendations
 
 ### Controls
 
-- **Camera Dropdown**: Select which camera/device to use for video capture
+- **Camera Dropdown** (Camera Tab): Select which camera/device to use for video capture
 - **Start Tracking Button**: Begin posture monitoring with the selected camera
 - **Stop Tracking Button**: Stop posture monitoring
-- **Settings Tab**: Access and configure tilt threshold settings
+- **Refresh Camera List** (Settings Tab): Re-scan for available cameras
+- **Test Button** (Settings Tab): Test a specific camera's connection
+- **Set Default Button** (Settings Tab): Set a camera as the default for the application
 
 ### How It Works
 
@@ -84,6 +91,22 @@ The application features a **tabbed interface** with two main sections:
   - Higher values = more lenient posture monitoring
 
 Settings are automatically saved to `posture_settings.db` and persist across sessions.
+
+## Troubleshooting
+
+### Common Startup Messages
+
+You may see some informational messages when starting the application. These are normal and can be safely ignored:
+
+- **MediaPipe Feedback Manager Warnings**: "Feedback manager requires a model with a single signature inference..." - This is an informational message from MediaPipe and does not affect functionality.
+- **MTD Input Device Warnings**: "[WARNING] [MTD] Unable to open device..." - This is a Kivy multitouch device warning. The application is configured to work without multitouch devices.
+- **Camera Detection Messages**: During startup, the app scans for available cameras which may produce brief messages. This is normal.
+
+### Camera Issues
+
+- **No cameras detected**: Make sure your webcam is connected and not being used by another application
+- **Permission errors**: On Linux, you may need to add your user to the `video` group: `sudo usermod -a -G video $USER`
+- **Camera not working**: Try a different camera from the Settings tab or restart the application
 
 ## Project Structure
 

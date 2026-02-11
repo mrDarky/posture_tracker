@@ -4,10 +4,19 @@ import warnings
 # Suppress warnings before importing other modules
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['KIVY_NO_CONSOLELOG'] = '0'
+# Suppress OpenCV warnings
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
 warnings.filterwarnings('ignore', category=UserWarning, module='google.protobuf')
 warnings.filterwarnings('ignore', category=FutureWarning, module='mediapipe')
 
 import cv2
+# Set OpenCV log level to ERROR only (suppresses WARN messages)
+# Only available in OpenCV 4.x
+try:
+    cv2.setLogLevel(3)
+except AttributeError:
+    pass  # setLogLevel not available in this OpenCV version
 import numpy as np
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
