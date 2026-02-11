@@ -1,110 +1,108 @@
-# Camera Management UI Preview
+# UI Design
 
-## Settings Tab Layout
+## Design System
 
-The Settings tab has been redesigned with two main sections:
+The app uses a modern dark theme with density-independent sizing (`dp`/`sp` units) for consistent cross-platform rendering on Windows, macOS, and Linux.
 
-### 1. Posture Tracking Settings (Top Section - 25%)
+### Color Palette
+
+| Role        | Value (RGBA)               | Usage                             |
+|-------------|----------------------------|-----------------------------------|
+| Background  | `(0.12, 0.12, 0.14, 1)`   | Window & tab backgrounds          |
+| Surface     | `(0.17, 0.17, 0.20, 1)`   | Card containers                   |
+| Input       | `(0.22, 0.22, 0.26, 1)`   | Text fields, spinners, list rows  |
+| Accent      | `(0.25, 0.56, 1.0, 1)`    | Primary buttons                   |
+| Good        | `(0.18, 0.80, 0.44, 1)`   | Good-posture status, start button |
+| Bad         | `(0.91, 0.30, 0.24, 1)`   | Bad-posture status, stop button   |
+| Scanning    | `(1.0, 0.76, 0.03, 1)`    | In-progress indicators            |
+| Text        | `(0.93, 0.93, 0.95, 1)`   | Primary text                      |
+| Text Muted  | `(0.55, 0.55, 0.60, 1)`   | Labels, descriptions              |
+
+### Reusable Widget Classes
+
+Defined in `posture_tracker.kv`:
+
+- **`Card`** — rounded `dp(12)` container with surface background
+- **`ModernButton`** — rounded `dp(10)` button with accent color
+- **`AccentButton`** — green variant for positive actions
+- **`DangerButton`** — red variant for stop/danger actions
+- **`ModernSpinner`** — styled dropdown on dark input surface
+- **`ModernTextInput`** — styled text field on dark input surface
+
+### Adaptive Layout
+
+- **Minimum window**: 480 × 400 px — prevents layout collapse
+- **Default window**: 800 × 600 px
+- All sizing uses `dp()` / `sp()` units for DPI-aware rendering
+- Cards and buttons scale with window size via `size_hint`
+- Scrollable camera list adapts to available space
+
+## Camera Tab
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Tilt Threshold (degrees):  [   15.0   ]                    │
-│                                                              │
-│  Lower values = stricter posture monitoring                 │
-│  Higher values = more lenient monitoring                    │
-│  Recommended range: 10-20 degrees                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 2. Camera Management Section (Middle Section - 45%)
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Camera Management                                           │
-│                                                              │
-│  [Refresh Camera List]    Status: Found 2 camera(s)         │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │ Scrollable Camera List:                                │ │
-│  │                                                        │ │
-│  │ ┌──────────────────────────────────────────────────┐  │ │
-│  │ │ Camera 0 [Default]                               │  │ │
-│  │ │ 640x480 - ✓ Working                              │  │ │
-│  │ │          [Test]  [Set Default] (disabled)        │  │ │
-│  │ └──────────────────────────────────────────────────┘  │ │
-│  │                                                        │ │
-│  │ ┌──────────────────────────────────────────────────┐  │ │
-│  │ │ Camera 1                                         │  │ │
-│  │ │ 1280x720 - ✓ Working                            │  │ │
-│  │ │          [Test]  [Set Default]                   │  │ │
-│  │ └──────────────────────────────────────────────────┘  │ │
-│  │                                                        │ │
-│  │ ┌──────────────────────────────────────────────────┐  │ │
-│  │ │ Camera 2                                         │  │ │
-│  │ │ Failed to read frame - ✗ Not available          │  │ │
-│  │ │          [Test] (disabled)  [Set Default] (dis)  │  │ │
-│  │ └──────────────────────────────────────────────────┘  │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 3. Save Button and Status (Bottom Section - 15%)
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    [Save Settings]                           │
-│                                                              │
-│  Settings saved! Threshold: 15.0°                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Color Coding
-
-- **Green (✓ Working)**: Camera is available and functioning
-- **Red (✗ Not available)**: Camera failed to open or read frames
-- **[Default] marker**: Indicates the currently selected default camera
-- **Disabled buttons**: Grayed out for unavailable cameras or already-default cameras
-
-## User Interactions
-
-### Refresh Camera List Button
-- Click to re-scan for available cameras
-- Status shows "Scanning..." during detection
-- Updates list with newly detected or disconnected cameras
-
-### Test Button (per camera)
-- Tests if the camera can capture a frame
-- Shows success/failure message in status area
-- Useful for verifying camera functionality
-
-### Set Default Button (per camera)
-- Sets the camera as the default for the application
-- Saves preference to database
-- Updates camera dropdown in Camera tab
-- Disabled if camera is already default or not working
-
-## Example Status Messages
-
-During refresh:
-```
-Status: Scanning...
+┌──────────────────────────────────────────────────────┐
+│  [ Camera ]  [ Settings ]                            │
+├──────────────────────────────────────────────────────┤
+│  ╭──────────────────────────────────────────────╮    │
+│  │ Camera:   [ Camera 0              ▾ ]        │    │
+│  ╰──────────────────────────────────────────────╯    │
+│                                                      │
+│  ╭──────────────────────────────────────────────╮    │
+│  │                                              │    │
+│  │          (live camera feed area)             │    │
+│  │                                              │    │
+│  │  Tilt:  12.3°              Good Posture      │    │
+│  ╰──────────────────────────────────────────────╯    │
+│                                                      │
+│  [ ● Start Tracking ]    [ ■ Stop Tracking ]         │
+│    (green, rounded)        (red, rounded)            │
+└──────────────────────────────────────────────────────┘
 ```
 
-After refresh:
+## Settings Tab
+
 ```
-Status: Found 2 camera(s)
+┌──────────────────────────────────────────────────────┐
+│  [ Camera ]  [ Settings ]                            │
+├──────────────────────────────────────────────────────┤
+│  Settings                                            │
+│                                                      │
+│  ╭──────────────────────────────────────────────╮    │
+│  │  Tilt Threshold                              │    │
+│  │  Degrees:  [ 15.0                  ]         │    │
+│  │  Lower = stricter · Higher = lenient         │    │
+│  │  Recommended: 10–20 degrees                  │    │
+│  ╰──────────────────────────────────────────────╯    │
+│                                                      │
+│  ╭──────────────────────────────────────────────╮    │
+│  │  Camera Management                           │    │
+│  │  [ Refresh Cameras ]  Found 2 camera(s)      │    │
+│  │  ┌──────────────────────────────────────┐    │    │
+│  │  │ ● Camera 0 ★ — 640×480  [Test][Def] │    │    │
+│  │  │ ● Camera 1   — 1280×720 [Test][Def] │    │    │
+│  │  │ ○ Camera 2   — unavail  [   ][   ]  │    │    │
+│  │  └──────────────────────────────────────┘    │    │
+│  ╰──────────────────────────────────────────────╯    │
+│                                                      │
+│  [ Save Settings ]                                   │
+│  Settings saved! Threshold: 15.0°                    │
+└──────────────────────────────────────────────────────┘
 ```
 
-After testing Camera 0:
-```
-Status: Camera 0 test successful!
-```
+## Status Indicators
 
-After setting default:
-```
-Status: Camera 1 set as default
-```
+| Symbol | Meaning                                 |
+|--------|-----------------------------------------|
+| `●`    | Camera available and working             |
+| `○`    | Camera unavailable                       |
+| `★`    | Default camera                           |
+| Green  | Good posture / success                   |
+| Red    | Bad posture / error                      |
+| Yellow | Scanning / in-progress                   |
 
-## Benefits
+## Cross-Platform Notes
 
-1. **Visual Feedback**: Clear indication of which cameras work
-2. **Easy Testing**: One-click test for each camera
-3. **Flexible Configuration**: Change default camera without code changes
-4. **Persistent Settings**: Default camera remembered across restarts
-5. **Troubleshooting**: Quickly identify camera issues
+- Uses Kivy framework — runs natively on Windows, macOS, and Linux
+- `dp()` and `sp()` units adapt to screen DPI automatically
+- Minimum window size prevents broken layouts on small screens
+- No platform-specific fonts or assets required
