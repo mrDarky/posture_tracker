@@ -12,6 +12,12 @@ from database import SettingsDatabase
 from posture_detector import PostureDetector
 
 
+# UI Color constants
+NEUTRAL_COLOR = (0.5, 0.5, 0.5, 1)
+GOOD_COLOR = (0, 1, 0, 1)
+BAD_COLOR = (1, 0, 0, 1)
+
+
 class PostureTrackerApp(TabbedPanel):
     """Main application layout with tabs."""
     
@@ -31,8 +37,8 @@ class PostureTrackerApp(TabbedPanel):
         camera_spinner = self.ids.camera_spinner
         available_cameras = []
         
-        # Try to detect available cameras (check indices 0-5)
-        for i in range(6):
+        # Try to detect available cameras (check indices 0-2, reduced for faster startup)
+        for i in range(3):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
                 available_cameras.append(f"Camera {i}")
@@ -42,10 +48,7 @@ class PostureTrackerApp(TabbedPanel):
             available_cameras = ["No cameras found"]
         
         camera_spinner.values = available_cameras
-        if available_cameras[0] != "No cameras found":
-            camera_spinner.text = available_cameras[0]
-        else:
-            camera_spinner.text = available_cameras[0]
+        camera_spinner.text = available_cameras[0]
         
         Logger.info(f"Found cameras: {available_cameras}")
     
@@ -100,7 +103,7 @@ class PostureTrackerApp(TabbedPanel):
             self.ids.camera_display.texture = None
             self.ids.tilt_label.text = '0.0°'
             self.ids.status_label.text = 'Stopped'
-            self.ids.status_label.color = (0.5, 0.5, 0.5, 1)
+            self.ids.status_label.color = NEUTRAL_COLOR
             
             self.ids.start_button.disabled = False
             self.ids.stop_button.disabled = True
@@ -132,12 +135,12 @@ class PostureTrackerApp(TabbedPanel):
         
         if is_bad_posture:
             self.ids.status_label.text = 'Bad Posture!'
-            self.ids.status_label.color = (1, 0, 0, 1)
-            self.ids.tilt_label.color = (1, 0, 0, 1)
+            self.ids.status_label.color = BAD_COLOR
+            self.ids.tilt_label.color = BAD_COLOR
         else:
             self.ids.status_label.text = 'Good Posture'
-            self.ids.status_label.color = (0, 1, 0, 1)
-            self.ids.tilt_label.color = (0, 1, 0, 1)
+            self.ids.status_label.color = GOOD_COLOR
+            self.ids.tilt_label.color = GOOD_COLOR
         
         # Display threshold on frame
         cv2.putText(processed_frame, f'Threshold: {threshold:.1f}', (10, 30),
@@ -151,21 +154,26 @@ class PostureTrackerApp(TabbedPanel):
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.ids.camera_display.texture = texture
     
+    def validate_threshold(self, value):
+        """Validate and clamp threshold value to valid range (0-90 degrees)."""
+        if value < 0:
+            return 0
+        if value > 90:
+            return 90
+        return value
+    
     def save_settings(self):
         """Save settings from the settings tab."""
         try:
             threshold = float(self.ids.threshold_input.text)
-            if threshold < 0:
-                threshold = 0
-            if threshold > 90:
-                threshold = 90
+            threshold = self.validate_threshold(threshold)
             self.db.set_tilt_threshold(threshold)
             self.ids.settings_status.text = f'Settings saved! Threshold: {threshold}°'
-            self.ids.settings_status.color = (0, 1, 0, 1)
+            self.ids.settings_status.color = GOOD_COLOR
             Logger.info(f"Settings saved: threshold={threshold}")
         except ValueError:
             self.ids.settings_status.text = 'Error: Invalid threshold value'
-            self.ids.settings_status.color = (1, 0, 0, 1)
+            self.ids.settings_status.color = BAD_COLOR
             Logger.error("Invalid threshold value")
     
     def load_settings(self):
