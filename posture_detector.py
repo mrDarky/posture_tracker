@@ -1,9 +1,11 @@
 import cv2
-import mediapipe as mp
 import numpy as np
 import math
 import os
+import sys
 import warnings
+import time
+from contextlib import contextmanager
 
 # Suppress TensorFlow/MediaPipe warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -20,6 +22,29 @@ except AttributeError:
     pass  # setLogLevel not available in this OpenCV version
 
 
+@contextmanager
+def suppress_stderr():
+    """Context manager to suppress stderr output (for C++ library warnings)."""
+    stderr_fd = sys.stderr.fileno()
+    # Save a copy of the original stderr file descriptor
+    with os.fdopen(os.dup(stderr_fd), 'wb') as original_stderr:
+        # Open /dev/null or os.devnull
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        try:
+            # Redirect stderr to /dev/null
+            os.dup2(devnull_fd, stderr_fd)
+            yield
+        finally:
+            # Restore stderr
+            os.dup2(original_stderr.fileno(), stderr_fd)
+            os.close(devnull_fd)
+
+
+# Import MediaPipe with suppressed stderr to avoid initialization warnings
+with suppress_stderr():
+    import mediapipe as mp
+
+
 class PostureDetector:
     """Posture detection using MediaPipe Pose."""
     
@@ -28,10 +53,14 @@ class PostureDetector:
         self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
-        self.pose = self.mp_pose.Pose(
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
-        )
+        # Initialize Pose with suppressed stderr to avoid absl warnings
+        with suppress_stderr():
+            self.pose = self.mp_pose.Pose(
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5
+            )
+            # Small delay to allow async C++ warnings to be written to suppressed stderr
+            time.sleep(0.1)
     
     def calculate_tilt(self, left_shoulder, right_shoulder):
         """Calculate shoulder tilt angle."""
