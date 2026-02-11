@@ -406,10 +406,12 @@ class PostureTrackerApp(TabbedPanel):
                 )
                 btn_color = (0.28, 0.28, 0.32, 1) if default_btn.disabled else GOOD_COLOR
                 with default_btn.canvas.before:
-                    Color(*btn_color)
+                    def_color = Color(*btn_color)
                     def_bg = RoundedRectangle(pos=default_btn.pos, size=default_btn.size, radius=[dp(8)])
                 default_btn.bind(pos=lambda inst, val, r=def_bg: setattr(r, 'pos', val))
                 default_btn.bind(size=lambda inst, val, r=def_bg: setattr(r, 'size', val))
+                default_btn.bind(disabled=lambda inst, val, c=def_color: setattr(
+                    c, 'rgba', (0.28, 0.28, 0.32, 1) if val else GOOD_COLOR))
                 default_btn.bind(on_press=lambda btn, idx=cam['index']: self.set_default_camera(idx))
                 
                 cam_box.add_widget(info_label)
