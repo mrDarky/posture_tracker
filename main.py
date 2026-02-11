@@ -35,8 +35,8 @@ class PostureTrackerApp(TabbedPanel):
         self._camera_list_retry_count = 0
         self._settings_load_retry_count = 0
         
-        # Populate camera list after UI is built
-        Clock.schedule_once(self.populate_camera_list, 0.1)
+        # Populate camera list after UI is built (give more time for widget initialization)
+        Clock.schedule_once(self.populate_camera_list, 0.5)
     
     def populate_camera_list(self, dt):
         """Populate the camera selection spinner with available cameras."""
@@ -45,6 +45,9 @@ class PostureTrackerApp(TabbedPanel):
             # Reschedule if not ready yet (max 50 retries = 5 seconds)
             self._camera_list_retry_count += 1
             if self._camera_list_retry_count < 50:
+                # Only log at specific intervals to reduce noise
+                if self._camera_list_retry_count == 1 or self._camera_list_retry_count % 10 == 0:
+                    Logger.debug(f"camera_spinner not yet available, retry {self._camera_list_retry_count}/50")
                 Clock.schedule_once(self.populate_camera_list, 0.1)
             else:
                 Logger.error("Camera spinner not available after 5 seconds")
@@ -208,7 +211,9 @@ class PostureTrackerApp(TabbedPanel):
             # Retry loading settings after a short delay (with max retry limit)
             self._settings_load_retry_count += 1
             if self._settings_load_retry_count < self.MAX_WIDGET_INIT_RETRIES:
-                Logger.warning(f"threshold_input not yet available, retry {self._settings_load_retry_count}/{self.MAX_WIDGET_INIT_RETRIES}")
+                # Only log at specific intervals to reduce noise
+                if self._settings_load_retry_count == 1 or self._settings_load_retry_count % 10 == 0:
+                    Logger.debug(f"threshold_input not yet available, retry {self._settings_load_retry_count}/{self.MAX_WIDGET_INIT_RETRIES}")
                 Clock.schedule_once(lambda dt: self.load_settings(), self.WIDGET_INIT_RETRY_DELAY)
             else:
                 Logger.error("threshold_input not available after maximum retries")
@@ -231,8 +236,8 @@ class MainApp(App):
         self.title = 'Posture Tracker'
         Window.size = (800, 600)
         self.root = PostureTrackerApp()
-        # Load settings when app starts
-        Clock.schedule_once(lambda dt: self.root.load_settings(), 0.2)
+        # Load settings when app starts (give more time for widget initialization)
+        Clock.schedule_once(lambda dt: self.root.load_settings(), 0.5)
         return self.root
     
     def start_tracking(self):
