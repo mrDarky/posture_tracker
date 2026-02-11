@@ -261,6 +261,11 @@ class PostureTrackerApp(TabbedPanel):
         """
         Detect available cameras and return information about them.
         
+        Args:
+            max_cameras: Maximum number of camera indices to check (default: 10).
+                        Most systems have 0-2 cameras, but checking up to 10 covers
+                        edge cases with multiple USB cameras or virtual cameras.
+        
         Returns:
             List of dicts with camera info: [{'index': 0, 'name': 'Camera 0', 'available': True, 'info': '...'}]
         """
@@ -273,7 +278,6 @@ class PostureTrackerApp(TabbedPanel):
                 # Try to get camera properties
                 width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
                 height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                fps = cap.get(cv2.CAP_PROP_FPS)
                 
                 # Try to read a frame to verify it's working
                 ret, frame = cap.read()

@@ -27,31 +27,35 @@ def test_database_camera_functions():
     """Test database camera storage functions."""
     print("Testing database camera functions...")
     
-    # Create a test database
-    db = SettingsDatabase('test_settings.db')
+    db_path = 'test_settings.db'
     
-    # Test default camera getter
-    default_camera = db.get_default_camera()
-    print(f"✓ Default camera (before set): {default_camera}")
-    assert default_camera == 0, "Default camera should be 0"
-    
-    # Test setting camera
-    db.set_default_camera(1)
-    default_camera = db.get_default_camera()
-    print(f"✓ Default camera (after set to 1): {default_camera}")
-    assert default_camera == 1, "Default camera should be 1"
-    
-    # Test setting camera back
-    db.set_default_camera(0)
-    default_camera = db.get_default_camera()
-    print(f"✓ Default camera (after set to 0): {default_camera}")
-    assert default_camera == 0, "Default camera should be 0"
-    
-    # Clean up test database
-    if os.path.exists('test_settings.db'):
-        os.remove('test_settings.db')
-    
-    print("✓ All database camera tests passed!\n")
+    try:
+        # Create a test database
+        db = SettingsDatabase(db_path)
+        
+        # Test default camera getter
+        default_camera = db.get_default_camera()
+        print(f"✓ Default camera (before set): {default_camera}")
+        assert default_camera == 0, "Default camera should be 0"
+        
+        # Test setting camera
+        db.set_default_camera(1)
+        default_camera = db.get_default_camera()
+        print(f"✓ Default camera (after set to 1): {default_camera}")
+        assert default_camera == 1, "Default camera should be 1"
+        
+        # Test setting camera back
+        db.set_default_camera(0)
+        default_camera = db.get_default_camera()
+        print(f"✓ Default camera (after set to 0): {default_camera}")
+        assert default_camera == 0, "Default camera should be 0"
+        
+        print("✓ All database camera tests passed!\n")
+        
+    finally:
+        # Clean up test database
+        if os.path.exists(db_path):
+            os.remove(db_path)
 
 
 def test_camera_detection():
