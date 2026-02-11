@@ -4,6 +4,7 @@ import os
 
 # Default settings constants
 DEFAULT_TILT_THRESHOLD = 15.0  # degrees
+DEFAULT_CAMERA_INDEX = 0  # default camera
 
 
 class SettingsDatabase:
@@ -54,3 +55,11 @@ class SettingsDatabase:
     def set_tilt_threshold(self, value):
         """Set the tilt threshold setting."""
         self.set_setting('tilt_threshold', str(value))
+    
+    def get_default_camera(self):
+        """Get the default camera index setting (default: 0)."""
+        return int(self.get_setting('default_camera', str(DEFAULT_CAMERA_INDEX)))
+    
+    def set_default_camera(self, value):
+        """Set the default camera index setting."""
+        self.set_setting('default_camera', str(value))

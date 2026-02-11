@@ -99,13 +99,14 @@
             Label:
                 text: 'Posture Tracking Settings'
                 font_size: '24sp'
-                size_hint_y: 0.2
+                size_hint_y: 0.15
                 bold: True
             
+            # Threshold Settings Section
             BoxLayout:
                 orientation: 'vertical'
                 spacing: 10
-                size_hint_y: 0.4
+                size_hint_y: 0.25
                 
                 BoxLayout:
                     orientation: 'horizontal'
@@ -136,10 +137,56 @@
                     valign: 'top'
                     text_size: self.size
             
+            # Camera Management Section
+            BoxLayout:
+                orientation: 'vertical'
+                spacing: 10
+                size_hint_y: 0.45
+                
+                Label:
+                    text: 'Camera Management'
+                    font_size: '20sp'
+                    size_hint_y: None
+                    height: 30
+                    bold: True
+                
+                BoxLayout:
+                    orientation: 'horizontal'
+                    spacing: 10
+                    size_hint_y: None
+                    height: 40
+                    
+                    Button:
+                        text: 'Refresh Camera List'
+                        font_size: '16sp'
+                        on_press: app.refresh_camera_list()
+                        background_color: 0.2, 0.6, 0.8, 1
+                        size_hint_x: 0.5
+                    
+                    Label:
+                        id: camera_scan_status
+                        text: ''
+                        font_size: '14sp'
+                        size_hint_x: 0.5
+                
+                ScrollView:
+                    size_hint_y: 1
+                    do_scroll_x: False
+                    do_scroll_y: True
+                    
+                    GridLayout:
+                        id: camera_list_container
+                        cols: 1
+                        spacing: 5
+                        size_hint_y: None
+                        height: self.minimum_height
+                        padding: [5, 5]
+            
+            # Save Button
             Button:
                 text: 'Save Settings'
                 font_size: '20sp'
-                size_hint_y: 0.2
+                size_hint_y: 0.1
                 on_press: app.save_settings()
                 background_color: 0, 0.5, 0.8, 1
             
@@ -147,5 +194,5 @@
                 id: settings_status
                 text: ''
                 font_size: '16sp'
-                size_hint_y: 0.2
+                size_hint_y: 0.05
                 color: 0, 1, 0, 1

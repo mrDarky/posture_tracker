@@ -2,6 +2,13 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import math
+import os
+import warnings
+
+# Suppress TensorFlow/MediaPipe warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings('ignore', category=UserWarning, module='google.protobuf')
+warnings.filterwarnings('ignore', category=FutureWarning, module='mediapipe')
 
 
 class PostureDetector:
