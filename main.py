@@ -619,7 +619,7 @@ class PostureTrackerApp(TabbedPanel):
                 if 'camera_scan_status' in self.ids:
                     self.ids.camera_scan_status.text = 'Error: Failed to save default camera'
                     self.ids.camera_scan_status.color = CURRENT_THEME['bad']
-                return
+                # Don't return early - still update UI even if database save fails
         
         # Update the camera spinner in the Camera tab
         if 'camera_spinner' in self.ids:
