@@ -100,6 +100,7 @@ def test_load_settings_with_widgets():
     print("\nTesting load_settings() with available widgets...")
     
     from main import PostureTrackerApp
+    from database import DEFAULT_TILT_THRESHOLD
     
     # Create app instance
     app = PostureTrackerApp()
@@ -116,7 +117,8 @@ def test_load_settings_with_widgets():
     try:
         app.load_settings()
         # Check that the input was populated with the default threshold
-        assert mock_input.text == "15.0", f"Expected '15.0', got '{mock_input.text}'"
+        expected = str(DEFAULT_TILT_THRESHOLD)
+        assert mock_input.text == expected, f"Expected '{expected}', got '{mock_input.text}'"
         print("✓ load_settings() worked correctly with widgets present")
         return True
     except Exception as e:
