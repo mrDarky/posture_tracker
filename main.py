@@ -179,6 +179,11 @@ class PostureTrackerApp(TabbedPanel):
     
     def save_settings(self):
         """Save settings from the settings tab."""
+        # Check if threshold_input is available
+        if 'threshold_input' not in self.ids or 'settings_status' not in self.ids:
+            Logger.warning("Settings widgets not yet available")
+            return
+        
         try:
             threshold = float(self.ids.threshold_input.text)
             threshold = self.validate_threshold(threshold)
@@ -193,9 +198,17 @@ class PostureTrackerApp(TabbedPanel):
     
     def load_settings(self):
         """Load current settings into the settings tab."""
+        # Check if threshold_input is available
+        if 'threshold_input' not in self.ids:
+            Logger.warning("threshold_input not yet available, will retry")
+            # Retry loading settings after a short delay
+            Clock.schedule_once(lambda dt: self.load_settings(), 0.2)
+            return
+        
         threshold = self.db.get_tilt_threshold()
         self.ids.threshold_input.text = str(threshold)
-        self.ids.settings_status.text = ''
+        if 'settings_status' in self.ids:
+            self.ids.settings_status.text = ''
 
 
 class MainApp(App):
