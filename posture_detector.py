@@ -25,25 +25,33 @@ except AttributeError:
 @contextmanager
 def suppress_stderr():
     """Context manager to suppress stderr output (for C++ library warnings)."""
+    # Check if stderr has a file descriptor (may not be available in some environments)
     try:
         stderr_fd = sys.stderr.fileno()
+    except (AttributeError, OSError):
+        # If stderr doesn't have a file descriptor (e.g., in some CI/testing environments),
+        # just yield without suppression
+        yield
+        return
+    
+    # Proceed with file descriptor redirection
+    stderr_dup = None
+    devnull_fd = None
+    try:
         # Save a copy of the original stderr file descriptor
         stderr_dup = os.dup(stderr_fd)
         # Open /dev/null
         devnull_fd = os.open(os.devnull, os.O_WRONLY)
-        try:
-            # Redirect stderr to /dev/null
-            os.dup2(devnull_fd, stderr_fd)
-            yield
-        finally:
-            # Restore stderr
+        # Redirect stderr to /dev/null
+        os.dup2(devnull_fd, stderr_fd)
+        yield
+    finally:
+        # Restore stderr and clean up file descriptors
+        if stderr_dup is not None:
             os.dup2(stderr_dup, stderr_fd)
             os.close(stderr_dup)
+        if devnull_fd is not None:
             os.close(devnull_fd)
-    except (AttributeError, OSError):
-        # If stderr doesn't have a file descriptor (e.g., in some CI/testing environments)
-        # or if file descriptor operations fail, just yield without suppression
-        yield
 
 
 # Import MediaPipe with suppressed stderr to avoid initialization warnings
