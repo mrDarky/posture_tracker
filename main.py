@@ -28,18 +28,27 @@ from kivy.graphics.texture import Texture
 from kivy.core.window import Window
 from kivy.logger import Logger
 from kivy.config import Config
+from kivy.lang import Builder
 
 # Configure Kivy to not require multitouch input device
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
+
+# Load the KV layout file explicitly (filename doesn't match App class name)
+Builder.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'posture_tracker.kv'))
 
 from database import SettingsDatabase
 from posture_detector import PostureDetector
 
 
-# UI Color constants
-NEUTRAL_COLOR = (0.5, 0.5, 0.5, 1)
-GOOD_COLOR = (0, 1, 0, 1)
-BAD_COLOR = (1, 0, 0, 1)
+# UI Color constants — modern dark-theme palette
+NEUTRAL_COLOR = (0.55, 0.55, 0.60, 1)
+GOOD_COLOR = (0.18, 0.80, 0.44, 1)
+BAD_COLOR = (0.91, 0.30, 0.24, 1)
+SURFACE_COLOR = (0.17, 0.17, 0.20, 1)
+TEXT_COLOR = (0.93, 0.93, 0.95, 1)
+TEXT_MUTED_COLOR = (0.55, 0.55, 0.60, 1)
+ACCENT_COLOR = (0.25, 0.56, 1.0, 1)
+SCANNING_COLOR = (1.0, 0.76, 0.03, 1)
 
 
 class PostureTrackerApp(TabbedPanel):
@@ -301,13 +310,16 @@ class PostureTrackerApp(TabbedPanel):
         
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = 'Scanning...'
-            self.ids.camera_scan_status.color = (1, 1, 0, 1)  # Yellow
+            self.ids.camera_scan_status.color = SCANNING_COLOR
         
         # Run camera detection (this might take a moment)
         Clock.schedule_once(lambda dt: self._update_camera_list(), 0.1)
     
     def _update_camera_list(self):
         """Update the camera list UI with detected cameras."""
+        from kivy.metrics import dp, sp
+        from kivy.graphics import Color, RoundedRectangle
+
         cameras = self.detect_cameras()
         
         # Clear existing camera list
@@ -318,53 +330,86 @@ class PostureTrackerApp(TabbedPanel):
             no_camera_label = Label(
                 text='No cameras detected',
                 size_hint_y=None,
-                height=40,
-                color=(1, 0, 0, 1)
+                height=dp(40),
+                color=BAD_COLOR,
+                font_size=sp(14),
             )
             container.add_widget(no_camera_label)
         else:
             default_camera = self.db.get_default_camera()
             
             for cam in cameras:
-                # Create a horizontal box for each camera
+                # Create a card-style row for each camera
                 cam_box = BoxLayout(
                     orientation='horizontal',
                     size_hint_y=None,
-                    height=60,
-                    spacing=5,
-                    padding=[5, 5]
+                    height=dp(56),
+                    spacing=dp(8),
+                    padding=[dp(12), dp(8)],
                 )
+                # Draw rounded background for camera row
+                with cam_box.canvas.before:
+                    Color(0.22, 0.22, 0.26, 1)
+                    bg_rect = RoundedRectangle(pos=cam_box.pos, size=cam_box.size, radius=[dp(8)])
+                cam_box.bind(pos=lambda inst, val, r=bg_rect: setattr(r, 'pos', val))
+                cam_box.bind(size=lambda inst, val, r=bg_rect: setattr(r, 'size', val))
                 
                 # Camera info label
                 status_color = GOOD_COLOR if cam['available'] else BAD_COLOR
-                status_text = '✓ Working' if cam['available'] else '✗ Not available'
-                is_default = ' [Default]' if cam['index'] == default_camera else ''
+                status_icon = '●' if cam['available'] else '○'
+                is_default = '  ★' if cam['index'] == default_camera else ''
                 
                 info_label = Label(
-                    text=f"{cam['name']}{is_default}\n{cam['info']} - {status_text}",
+                    text=f"{status_icon} {cam['name']}{is_default}  —  {cam['info']}",
                     size_hint_x=0.5,
                     color=status_color,
+                    font_size=sp(13),
                     halign='left',
-                    valign='middle'
+                    valign='middle',
                 )
                 info_label.bind(size=info_label.setter('text_size'))
                 
-                # Test button
+                # Test button — modern styled
                 test_btn = Button(
                     text='Test',
                     size_hint_x=0.25,
+                    size_hint_y=None,
+                    height=dp(36),
                     disabled=not cam['available'],
-                    background_color=(0.3, 0.6, 0.9, 1)
+                    background_normal='',
+                    background_down='',
+                    background_color=(0, 0, 0, 0),
+                    color=TEXT_COLOR,
+                    font_size=sp(13),
+                    bold=True,
                 )
+                with test_btn.canvas.before:
+                    Color(*(ACCENT_COLOR[:3]), 1)
+                    test_bg = RoundedRectangle(pos=test_btn.pos, size=test_btn.size, radius=[dp(8)])
+                test_btn.bind(pos=lambda inst, val, r=test_bg: setattr(r, 'pos', val))
+                test_btn.bind(size=lambda inst, val, r=test_bg: setattr(r, 'size', val))
                 test_btn.bind(on_press=lambda btn, idx=cam['index']: self.test_camera(idx))
                 
-                # Set as default button
+                # Set as default button — modern styled
                 default_btn = Button(
-                    text='Set Default',
+                    text='Default',
                     size_hint_x=0.25,
+                    size_hint_y=None,
+                    height=dp(36),
                     disabled=not cam['available'] or cam['index'] == default_camera,
-                    background_color=(0, 0.7, 0.3, 1)
+                    background_normal='',
+                    background_down='',
+                    background_color=(0, 0, 0, 0),
+                    color=TEXT_COLOR,
+                    font_size=sp(13),
+                    bold=True,
                 )
+                btn_color = (0.28, 0.28, 0.32, 1) if default_btn.disabled else GOOD_COLOR
+                with default_btn.canvas.before:
+                    Color(*btn_color)
+                    def_bg = RoundedRectangle(pos=default_btn.pos, size=default_btn.size, radius=[dp(8)])
+                default_btn.bind(pos=lambda inst, val, r=def_bg: setattr(r, 'pos', val))
+                default_btn.bind(size=lambda inst, val, r=def_bg: setattr(r, 'size', val))
                 default_btn.bind(on_press=lambda btn, idx=cam['index']: self.set_default_camera(idx))
                 
                 cam_box.add_widget(info_label)
@@ -381,7 +426,7 @@ class PostureTrackerApp(TabbedPanel):
         """Test a camera by trying to capture a frame."""
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = f'Testing Camera {camera_index}...'
-            self.ids.camera_scan_status.color = (1, 1, 0, 1)  # Yellow
+            self.ids.camera_scan_status.color = SCANNING_COLOR
         
         cap = cv2.VideoCapture(camera_index)
         
@@ -430,6 +475,9 @@ class MainApp(App):
         """Build the application UI."""
         self.title = 'Posture Tracker'
         Window.size = (800, 600)
+        Window.minimum_width = 480
+        Window.minimum_height = 400
+        Window.clearcolor = (0.12, 0.12, 0.14, 1)
         self.root = PostureTrackerApp()
         # Load settings when app starts (give more time for widget initialization)
         Clock.schedule_once(lambda dt: self.root.load_settings(), 0.5)
