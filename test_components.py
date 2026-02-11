@@ -108,6 +108,26 @@ def test_imports():
         print(f"✗ Failed to import database: {e}")
         modules_ok = False
     
+    # Test mediapipe with solutions API
+    try:
+        import mediapipe as mp
+        assert hasattr(mp, 'solutions'), "mediapipe.solutions not found"
+        assert hasattr(mp.solutions, 'pose'), "mediapipe.solutions.pose not found"
+        print(f"✓ mediapipe imported (version {mp.__version__})")
+    except (ImportError, AttributeError, AssertionError) as e:
+        print(f"✗ Failed to import mediapipe with solutions API: {e}")
+        modules_ok = False
+    
+    # Test PostureDetector initialization
+    try:
+        from posture_detector import PostureDetector
+        detector = PostureDetector()
+        detector.release()
+        print("✓ PostureDetector can be initialized")
+    except Exception as e:
+        print(f"✗ Failed to initialize PostureDetector: {e}")
+        modules_ok = False
+    
     return modules_ok
 
 def main():
