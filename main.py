@@ -110,6 +110,13 @@ class PostureTrackerApp(TabbedPanel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
+        # Initialize tracking state first (needed by apply_theme)
+        self.is_tracking = False
+        self.capture = None
+        self.event = None
+        self._camera_list_retry_count = 0
+        self._settings_load_retry_count = 0
+        
         # Initialize database with error handling
         try:
             self.db = SettingsDatabase()
@@ -129,12 +136,6 @@ class PostureTrackerApp(TabbedPanel):
             Logger.error(f"Failed to initialize PostureDetector: {e}")
             Logger.error("Pose detection will not be available")
             self.detector = None
-        
-        self.capture = None
-        self.is_tracking = False
-        self.event = None
-        self._camera_list_retry_count = 0
-        self._settings_load_retry_count = 0
         
         # Populate camera list after UI is built (give more time for widget initialization)
         Clock.schedule_once(self.populate_camera_list, 0.5)
