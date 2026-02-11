@@ -372,6 +372,10 @@ class PostureTrackerApp(TabbedPanel):
             self.ids.settings_status.text = 'Error: Invalid threshold value'
             self.ids.settings_status.color = CURRENT_THEME['bad']
             Logger.error("Invalid threshold value")
+        except Exception as e:
+            self.ids.settings_status.text = 'Error: Failed to save settings'
+            self.ids.settings_status.color = CURRENT_THEME['bad']
+            Logger.error(f"Failed to save settings to database: {e}")
     
     def load_settings(self):
         """Load current settings into the settings tab."""
@@ -395,16 +399,22 @@ class PostureTrackerApp(TabbedPanel):
         # Reset retry counter on success
         self._settings_load_retry_count = 0
         
-        threshold = self.db.get_tilt_threshold()
-        self.ids.threshold_input.text = str(threshold)
-        
-        # Load theme setting
-        if 'theme_spinner' in self.ids:
-            theme = self.db.get_theme()
-            self.ids.theme_spinner.text = theme.capitalize()
-        
-        if 'settings_status' in self.ids:
-            self.ids.settings_status.text = ''
+        try:
+            threshold = self.db.get_tilt_threshold()
+            self.ids.threshold_input.text = str(threshold)
+            
+            # Load theme setting
+            if 'theme_spinner' in self.ids:
+                theme = self.db.get_theme()
+                self.ids.theme_spinner.text = theme.capitalize()
+            
+            if 'settings_status' in self.ids:
+                self.ids.settings_status.text = ''
+        except Exception as e:
+            Logger.error(f"Failed to load settings from database: {e}")
+            if 'settings_status' in self.ids:
+                self.ids.settings_status.text = 'Error loading settings'
+                self.ids.settings_status.color = CURRENT_THEME['bad']
     
     def detect_cameras(self, max_cameras=10):
         """
@@ -596,13 +606,20 @@ class PostureTrackerApp(TabbedPanel):
     def set_default_camera(self, camera_index):
         """Set the default camera for the application."""
         if self.db:
-            self.db.set_default_camera(camera_index)
-        
-        if 'camera_scan_status' in self.ids:
-            self.ids.camera_scan_status.text = f'Camera {camera_index} set as default'
-            self.ids.camera_scan_status.color = CURRENT_THEME['good']
-        
-        Logger.info(f"Default camera set to {camera_index}")
+            try:
+                self.db.set_default_camera(camera_index)
+                
+                if 'camera_scan_status' in self.ids:
+                    self.ids.camera_scan_status.text = f'Camera {camera_index} set as default'
+                    self.ids.camera_scan_status.color = CURRENT_THEME['good']
+                
+                Logger.info(f"Default camera set to {camera_index}")
+            except Exception as e:
+                Logger.error(f"Failed to set default camera in database: {e}")
+                if 'camera_scan_status' in self.ids:
+                    self.ids.camera_scan_status.text = 'Error: Failed to save default camera'
+                    self.ids.camera_scan_status.color = CURRENT_THEME['bad']
+                return
         
         # Update the camera spinner in the Camera tab
         if 'camera_spinner' in self.ids:
@@ -620,7 +637,14 @@ class PostureTrackerApp(TabbedPanel):
         
         # Save theme to database
         if self.db:
-            self.db.set_theme(theme_name)
+            try:
+                self.db.set_theme(theme_name)
+            except Exception as e:
+                Logger.error(f"Failed to save theme to database: {e}")
+                if 'settings_status' in self.ids:
+                    self.ids.settings_status.text = 'Error: Failed to save theme'
+                    self.ids.settings_status.color = CURRENT_THEME['bad']
+                # Continue with theme application even if save fails
         
         # Apply theme
         self.apply_theme(theme_name)
