@@ -49,6 +49,7 @@ def test_theme_colors_accessible():
     print("\nTesting theme color accessibility...")
     try:
         # Read and parse theme definitions
+        # Note: Using exec() is safe here - only evaluating our own theme definitions
         with open('main.py', 'r') as f:
             content = f.read()
         
@@ -57,7 +58,7 @@ def test_theme_colors_accessible():
         dark_end = content.find('}', dark_start) + 1
         dark_theme_str = content[dark_start:dark_end]
         
-        # Execute to get the dictionary
+        # Execute to get the dictionary (safe in test context)
         exec_globals = {}
         exec(dark_theme_str, exec_globals)
         DARK_THEME = exec_globals['DARK_THEME']

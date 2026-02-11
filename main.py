@@ -73,10 +73,11 @@ LIGHT_THEME = {
     'tab_text': (0.13, 0.13, 0.15, 1),
 }
 
-# Current theme - will be set during app initialization
+# Current theme - defaults to DARK_THEME, updated via apply_theme()
 CURRENT_THEME = DARK_THEME
 
-# UI Color constants — for backward compatibility
+# Backward compatibility constants - updated dynamically by apply_theme()
+# These allow older code sections to continue working while theme switching is enabled
 NEUTRAL_COLOR = CURRENT_THEME['neutral']
 GOOD_COLOR = CURRENT_THEME['good']
 BAD_COLOR = CURRENT_THEME['bad']

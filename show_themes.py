@@ -75,6 +75,7 @@ def show_contrast_check(theme_name, theme_colors):
 def main():
     """Display both themes."""
     # Read theme definitions from main.py
+    # Note: Using exec() is safe here - only evaluating our own theme definitions
     with open('main.py', 'r') as f:
         content = f.read()
     
@@ -88,7 +89,7 @@ def main():
     light_end = content.find('}', light_start) + 1
     light_theme_str = content[light_start:light_end]
     
-    # Execute to get dictionaries
+    # Execute to get dictionaries (safe in visualization context)
     exec_globals = {}
     exec(dark_theme_str, exec_globals)
     exec(light_theme_str, exec_globals)

@@ -56,6 +56,7 @@ def test_theme_colors():
     print("\nTesting theme color palettes...")
     try:
         # Read and parse theme definitions from main.py
+        # Note: Using exec() here is safe as we're only reading from our own codebase
         with open('main.py', 'r') as f:
             content = f.read()
         
@@ -70,6 +71,7 @@ def test_theme_colors():
         light_theme_str = content[light_start:light_end]
         
         # Execute to get the dictionaries
+        # Safe in test context - only evaluating our own theme definitions
         exec_globals = {}
         exec(dark_theme_str, exec_globals)
         exec(light_theme_str, exec_globals)
