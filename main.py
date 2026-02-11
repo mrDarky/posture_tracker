@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.popup import Popup
+from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.core.window import Window
@@ -12,33 +12,14 @@ from database import SettingsDatabase
 from posture_detector import PostureDetector
 
 
-class SettingsPopup(Popup):
-    """Popup window for configuring settings."""
-    
-    def __init__(self, db, **kwargs):
-        super().__init__(**kwargs)
-        self.db = db
-        # Load current threshold
-        threshold = self.db.get_tilt_threshold()
-        self.ids.threshold_input.text = str(threshold)
-    
-    def save_settings(self):
-        """Save settings to database and close popup."""
-        try:
-            threshold = float(self.ids.threshold_input.text)
-            if threshold < 0:
-                threshold = 0
-            if threshold > 90:
-                threshold = 90
-            self.db.set_tilt_threshold(threshold)
-            Logger.info(f"Settings saved: threshold={threshold}")
-            self.dismiss()
-        except ValueError:
-            Logger.error("Invalid threshold value")
+# UI Color constants
+NEUTRAL_COLOR = (0.5, 0.5, 0.5, 1)
+GOOD_COLOR = (0, 1, 0, 1)
+BAD_COLOR = (1, 0, 0, 1)
 
 
-class PostureTrackerApp(BoxLayout):
-    """Main application layout."""
+class PostureTrackerApp(TabbedPanel):
+    """Main application layout with tabs."""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -47,24 +28,61 @@ class PostureTrackerApp(BoxLayout):
         self.capture = None
         self.is_tracking = False
         self.event = None
+        
+        # Populate camera list after UI is built
+        Clock.schedule_once(self.populate_camera_list, 0.1)
+    
+    def populate_camera_list(self, dt):
+        """Populate the camera selection spinner with available cameras."""
+        camera_spinner = self.ids.camera_spinner
+        available_cameras = []
+        
+        # Try to detect available cameras (check indices 0-2, reduced for faster startup)
+        for i in range(3):
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                available_cameras.append(f"Camera {i}")
+                cap.release()
+        
+        if not available_cameras:
+            available_cameras = ["No cameras found"]
+        
+        camera_spinner.values = available_cameras
+        camera_spinner.text = available_cameras[0]
+        
+        Logger.info(f"Found cameras: {available_cameras}")
+    
+    def get_selected_camera_index(self):
+        """Get the selected camera index from the spinner."""
+        camera_text = self.ids.camera_spinner.text
+        if camera_text.startswith("Camera "):
+            try:
+                return int(camera_text.split()[1])
+            except (IndexError, ValueError):
+                return 0
+        return 0
     
     def start_tracking(self):
         """Start video capture and posture tracking."""
         if not self.is_tracking:
+            # Get selected camera index
+            camera_index = self.get_selected_camera_index()
+            
             # Open camera
-            self.capture = cv2.VideoCapture(0)
+            self.capture = cv2.VideoCapture(camera_index)
             
             if not self.capture.isOpened():
-                Logger.error("Failed to open camera")
+                Logger.error(f"Failed to open camera {camera_index}")
                 return
             
             self.is_tracking = True
             self.ids.start_button.disabled = True
             self.ids.stop_button.disabled = False
+            self.ids.camera_spinner.disabled = True
             
             # Schedule frame update
             self.event = Clock.schedule_interval(self.update_frame, 1.0/30.0)
-            Logger.info("Tracking started")
+            Logger.info(f"Tracking started with camera {camera_index}")
     
     def stop_tracking(self):
         """Stop video capture and posture tracking."""
@@ -85,10 +103,11 @@ class PostureTrackerApp(BoxLayout):
             self.ids.camera_display.texture = None
             self.ids.tilt_label.text = '0.0°'
             self.ids.status_label.text = 'Stopped'
-            self.ids.status_label.color = (0.5, 0.5, 0.5, 1)
+            self.ids.status_label.color = NEUTRAL_COLOR
             
             self.ids.start_button.disabled = False
             self.ids.stop_button.disabled = True
+            self.ids.camera_spinner.disabled = False
             Logger.info("Tracking stopped")
     
     def update_frame(self, dt):
@@ -116,12 +135,12 @@ class PostureTrackerApp(BoxLayout):
         
         if is_bad_posture:
             self.ids.status_label.text = 'Bad Posture!'
-            self.ids.status_label.color = (1, 0, 0, 1)
-            self.ids.tilt_label.color = (1, 0, 0, 1)
+            self.ids.status_label.color = BAD_COLOR
+            self.ids.tilt_label.color = BAD_COLOR
         else:
             self.ids.status_label.text = 'Good Posture'
-            self.ids.status_label.color = (0, 1, 0, 1)
-            self.ids.tilt_label.color = (0, 1, 0, 1)
+            self.ids.status_label.color = GOOD_COLOR
+            self.ids.tilt_label.color = GOOD_COLOR
         
         # Display threshold on frame
         cv2.putText(processed_frame, f'Threshold: {threshold:.1f}', (10, 30),
@@ -134,6 +153,34 @@ class PostureTrackerApp(BoxLayout):
         texture = Texture.create(size=(processed_frame.shape[1], processed_frame.shape[0]), colorfmt='bgr')
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.ids.camera_display.texture = texture
+    
+    def validate_threshold(self, value):
+        """Validate and clamp threshold value to valid range (0-90 degrees)."""
+        if value < 0:
+            return 0
+        if value > 90:
+            return 90
+        return value
+    
+    def save_settings(self):
+        """Save settings from the settings tab."""
+        try:
+            threshold = float(self.ids.threshold_input.text)
+            threshold = self.validate_threshold(threshold)
+            self.db.set_tilt_threshold(threshold)
+            self.ids.settings_status.text = f'Settings saved! Threshold: {threshold}°'
+            self.ids.settings_status.color = GOOD_COLOR
+            Logger.info(f"Settings saved: threshold={threshold}")
+        except ValueError:
+            self.ids.settings_status.text = 'Error: Invalid threshold value'
+            self.ids.settings_status.color = BAD_COLOR
+            Logger.error("Invalid threshold value")
+    
+    def load_settings(self):
+        """Load current settings into the settings tab."""
+        threshold = self.db.get_tilt_threshold()
+        self.ids.threshold_input.text = str(threshold)
+        self.ids.settings_status.text = ''
 
 
 class MainApp(App):
@@ -144,6 +191,8 @@ class MainApp(App):
         self.title = 'Posture Tracker'
         Window.size = (800, 600)
         self.root = PostureTrackerApp()
+        # Load settings when app starts
+        Clock.schedule_once(lambda dt: self.root.load_settings(), 0.2)
         return self.root
     
     def start_tracking(self):
@@ -154,10 +203,9 @@ class MainApp(App):
         """Stop tracking from button."""
         self.root.stop_tracking()
     
-    def show_settings(self):
-        """Show settings popup."""
-        popup = SettingsPopup(self.root.db)
-        popup.open()
+    def save_settings(self):
+        """Save settings from button."""
+        self.root.save_settings()
     
     def on_stop(self):
         """Clean up when app is closing."""

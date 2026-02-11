@@ -4,10 +4,12 @@ A Python application using Kivy, OpenCV, and MediaPipe to track and monitor your
 
 ## Features
 
+- **Tabbed Interface**: Organized UI with Camera and Settings tabs
+- **Camera Selection**: Choose from multiple available cameras/devices
 - **Real-time Posture Detection**: Uses your webcam to monitor shoulder alignment
 - **Visual Feedback**: Displays pose landmarks with dots and lines on video stream
 - **Posture Alerts**: Alerts you when your shoulders are tilted beyond a threshold
-- **Configurable Threshold**: Set your own tilt angle threshold in settings
+- **Configurable Threshold**: Set your own tilt angle threshold in the Settings tab
 - **Persistent Settings**: Your preferences are saved using SQLite database
 - **Start/Stop Controls**: Easy controls to start and stop monitoring
 
@@ -37,11 +39,29 @@ Run the application:
 python main.py
 ```
 
+### Interface Overview
+
+The application features a **tabbed interface** with two main sections:
+
+#### Tab 1: Camera
+- **Camera Selection**: Choose from available cameras using the dropdown menu
+- **Video Display**: Live camera feed with pose detection overlay
+- **Status Indicators**: Real-time tilt angle and posture status
+- **Controls**: 
+  - **Start Tracking**: Begin posture monitoring
+  - **Stop Tracking**: Stop posture monitoring
+
+#### Tab 2: Settings
+- **Tilt Threshold**: Configure the angle threshold (default: 15 degrees)
+- **Save Button**: Save your configuration
+- **Help Text**: Clear instructions and recommendations
+
 ### Controls
 
-- **Start Button**: Begin posture monitoring
-- **Stop Button**: Stop posture monitoring
-- **Settings Button**: Configure tilt threshold (default: 15 degrees)
+- **Camera Dropdown**: Select which camera/device to use for video capture
+- **Start Tracking Button**: Begin posture monitoring with the selected camera
+- **Stop Tracking Button**: Stop posture monitoring
+- **Settings Tab**: Access and configure tilt threshold settings
 
 ### How It Works
 
