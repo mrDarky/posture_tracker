@@ -1,5 +1,6 @@
 import os
 import warnings
+import sys
 
 # Suppress warnings before importing other modules
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -34,10 +35,19 @@ from kivy.lang import Builder
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 # Load the KV layout file explicitly (filename doesn't match App class name)
-Builder.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'posture_tracker.kv'))
+try:
+    Builder.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'posture_tracker.kv'))
+except Exception as e:
+    Logger.critical(f"Failed to load posture_tracker.kv: {e}")
+    sys.exit(1)
 
 from database import SettingsDatabase
 from posture_detector import PostureDetector
+
+
+# Default application settings (used when database is unavailable)
+DEFAULT_CAMERA_INDEX = 0
+DEFAULT_TILT_THRESHOLD = 15.0
 
 
 # UI Color Theme Palettes
@@ -97,12 +107,27 @@ class PostureTrackerApp(TabbedPanel):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.db = SettingsDatabase()
+        
+        # Initialize database with error handling
+        try:
+            self.db = SettingsDatabase()
+        except Exception as e:
+            Logger.error(f"Failed to initialize database: {e}")
+            Logger.warning("Using default settings")
+            self.db = None
         
         # Load and apply theme before creating detector
-        self.apply_theme(self.db.get_theme())
+        theme = self.db.get_theme() if self.db else 'dark'
+        self.apply_theme(theme)
         
-        self.detector = PostureDetector()
+        # Initialize detector with error handling
+        try:
+            self.detector = PostureDetector()
+        except Exception as e:
+            Logger.error(f"Failed to initialize PostureDetector: {e}")
+            Logger.error("Pose detection will not be available")
+            self.detector = None
+        
         self.capture = None
         self.is_tracking = False
         self.event = None
@@ -192,7 +217,7 @@ class PostureTrackerApp(TabbedPanel):
         camera_spinner.values = available_cameras
         
         # Set default camera from database
-        default_camera = self.db.get_default_camera()
+        default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
         if f"Camera {default_camera}" in available_cameras:
             camera_spinner.text = f"Camera {default_camera}"
         else:
@@ -202,18 +227,26 @@ class PostureTrackerApp(TabbedPanel):
     
     def get_selected_camera_index(self):
         """Get the selected camera index from the spinner."""
+        default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
         if 'camera_spinner' not in self.ids:
-            return self.db.get_default_camera()
+            return default_camera
         camera_text = self.ids.camera_spinner.text
         if camera_text.startswith("Camera "):
             try:
                 return int(camera_text.split()[1])
             except (IndexError, ValueError):
-                return self.db.get_default_camera()
-        return self.db.get_default_camera()
+                return default_camera
+        return default_camera
     
     def start_tracking(self):
         """Start video capture and posture tracking."""
+        if not self.detector:
+            Logger.error("Cannot start tracking: PostureDetector not initialized")
+            if 'status_label' in self.ids:
+                self.ids.status_label.text = 'Detector not available'
+                self.ids.status_label.color = CURRENT_THEME['bad']
+            return
+        
         if not self.is_tracking:
             # Get selected camera index
             camera_index = self.get_selected_camera_index()
@@ -264,7 +297,7 @@ class PostureTrackerApp(TabbedPanel):
     
     def update_frame(self, dt):
         """Update video frame and detect posture."""
-        if not self.is_tracking or not self.capture:
+        if not self.is_tracking or not self.capture or not self.detector:
             return
         
         ret, frame = self.capture.read()
@@ -277,7 +310,7 @@ class PostureTrackerApp(TabbedPanel):
         processed_frame, tilt_angle, left_shoulder, right_shoulder = self.detector.process_frame(frame)
         
         # Get threshold from database
-        threshold = self.db.get_tilt_threshold()
+        threshold = self.db.get_tilt_threshold() if self.db else DEFAULT_TILT_THRESHOLD
         
         # Check if posture is bad
         is_bad_posture = tilt_angle > threshold
@@ -316,6 +349,13 @@ class PostureTrackerApp(TabbedPanel):
     
     def save_settings(self):
         """Save settings from the settings tab."""
+        if not self.db:
+            Logger.error("Cannot save settings: Database not initialized")
+            if 'settings_status' in self.ids:
+                self.ids.settings_status.text = 'Error: Database not available'
+                self.ids.settings_status.color = CURRENT_THEME['bad']
+            return
+        
         # Check if threshold_input is available
         if 'threshold_input' not in self.ids or 'settings_status' not in self.ids:
             Logger.warning("Settings widgets not yet available")
@@ -335,6 +375,10 @@ class PostureTrackerApp(TabbedPanel):
     
     def load_settings(self):
         """Load current settings into the settings tab."""
+        if not self.db:
+            Logger.error("Cannot load settings: Database not initialized")
+            return
+        
         # Check if threshold_input is available
         if 'threshold_input' not in self.ids:
             # Retry loading settings after a short delay (with max retry limit)
@@ -432,7 +476,7 @@ class PostureTrackerApp(TabbedPanel):
             )
             container.add_widget(no_camera_label)
         else:
-            default_camera = self.db.get_default_camera()
+            default_camera = self.db.get_default_camera() if self.db else DEFAULT_CAMERA_INDEX
             
             for cam in cameras:
                 # Create a card-style row for each camera
@@ -551,7 +595,8 @@ class PostureTrackerApp(TabbedPanel):
     
     def set_default_camera(self, camera_index):
         """Set the default camera for the application."""
-        self.db.set_default_camera(camera_index)
+        if self.db:
+            self.db.set_default_camera(camera_index)
         
         if 'camera_scan_status' in self.ids:
             self.ids.camera_scan_status.text = f'Camera {camera_index} set as default'
@@ -574,7 +619,8 @@ class PostureTrackerApp(TabbedPanel):
             return
         
         # Save theme to database
-        self.db.set_theme(theme_name)
+        if self.db:
+            self.db.set_theme(theme_name)
         
         # Apply theme
         self.apply_theme(theme_name)
@@ -631,9 +677,16 @@ class MainApp(App):
         """Clean up when app is closing."""
         if self.root:
             self.root.stop_tracking()
-            self.root.detector.release()
+            if self.root.detector:
+                self.root.detector.release()
         return True
 
 
 if __name__ == '__main__':
-    MainApp().run()
+    try:
+        MainApp().run()
+    except Exception as e:
+        Logger.critical(f"Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
