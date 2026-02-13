@@ -45,6 +45,8 @@ except Exception as e:
 
 from database import SettingsDatabase
 from posture_detector import PostureDetector
+from exercise_database import ExerciseDatabase
+from exercise_detector import ExerciseDetector
 
 
 # Default application settings (used when database is unavailable)
@@ -117,6 +119,13 @@ class PostureTrackerApp(TabbedPanel):
         self._camera_list_retry_count = 0
         self._settings_load_retry_count = 0
         
+        # Initialize training state
+        self.is_training = False
+        self.training_capture = None
+        self.training_event = None
+        self.current_exercise_id = None
+        self.selected_exercise = None
+        
         # Initialize database with error handling
         try:
             self.db = SettingsDatabase()
@@ -137,8 +146,20 @@ class PostureTrackerApp(TabbedPanel):
             Logger.error("Pose detection will not be available")
             self.detector = None
         
+        # Initialize exercise database and detector
+        try:
+            self.exercise_db = ExerciseDatabase()
+            self.exercise_detector = ExerciseDetector()
+        except Exception as e:
+            Logger.error(f"Failed to initialize exercise components: {e}")
+            Logger.error("Training features will not be available")
+            self.exercise_db = None
+            self.exercise_detector = None
+        
         # Populate camera list after UI is built (give more time for widget initialization)
         Clock.schedule_once(self.populate_camera_list, 0.5)
+        # Populate exercise list
+        Clock.schedule_once(self.populate_exercise_list, 0.5)
     
     def apply_theme(self, theme_name):
         """Apply a theme to the application."""
@@ -662,6 +683,325 @@ class PostureTrackerApp(TabbedPanel):
         
         Logger.info(f"Theme changed to {theme_name}")
 
+    # ===== Training Tab Methods =====
+    
+    def populate_exercise_list(self, dt):
+        """Populate the exercise selection spinner."""
+        if 'exercise_spinner' not in self.ids or not self.exercise_db:
+            return
+        
+        # Get all exercises
+        exercises = self.exercise_db.get_all_exercises()
+        exercise_names = [ex.name for ex in exercises]
+        
+        self.ids.exercise_spinner.values = ['Select Exercise'] + exercise_names
+        
+        # Populate category filter
+        if 'category_filter_spinner' in self.ids:
+            categories = ['All'] + self.exercise_db.get_categories()
+            self.ids.category_filter_spinner.values = categories
+        
+        Logger.info(f"Loaded {len(exercises)} exercises")
+        
+        # Load current workout
+        self.refresh_workout_list()
+    
+    def filter_exercises_by_category(self, category):
+        """Filter exercises by category."""
+        if not self.exercise_db or 'exercise_spinner' not in self.ids:
+            return
+        
+        if category == 'All':
+            exercises = self.exercise_db.get_all_exercises()
+        else:
+            exercises = self.exercise_db.get_exercises_by_category(category)
+        
+        exercise_names = [ex.name for ex in exercises]
+        self.ids.exercise_spinner.values = ['Select Exercise'] + exercise_names
+        
+        # Reset selection
+        self.ids.exercise_spinner.text = 'Select Exercise'
+    
+    def select_exercise(self, exercise_name):
+        """Handle exercise selection."""
+        if exercise_name == 'Select Exercise' or not self.exercise_db:
+            return
+        
+        # Find exercise by name
+        exercises = self.exercise_db.get_all_exercises()
+        for ex in exercises:
+            if ex.name == exercise_name:
+                self.selected_exercise = ex
+                self.current_exercise_id = ex.id
+                self.update_exercise_info(ex)
+                Logger.info(f"Selected exercise: {ex.name}")
+                break
+    
+    def update_exercise_info(self, exercise):
+        """Update exercise information display."""
+        if 'exercise_info_label' not in self.ids:
+            return
+        
+        # Build formatted info text with markup
+        info_text = f"[b]{exercise.name}[/b]\n\n"
+        info_text += f"[color=888888]Category:[/color] {exercise.category}\n"
+        info_text += f"[color=888888]Difficulty:[/color] {exercise.difficulty}\n\n"
+        info_text += f"[b]Description:[/b]\n{exercise.description}\n\n"
+        info_text += f"[b]Target Muscles:[/b]\n{', '.join(exercise.target_muscles)}\n\n"
+        info_text += f"[b]Instructions:[/b]\n"
+        
+        for i, instruction in enumerate(exercise.instructions, 1):
+            info_text += f"{i}. {instruction}\n"
+        
+        self.ids.exercise_info_label.text = info_text
+    
+    def start_training(self):
+        """Start training mode with camera."""
+        if not self.exercise_detector or not self.selected_exercise:
+            Logger.error("Cannot start training: No exercise selected")
+            if 'training_feedback_label' in self.ids:
+                self.ids.training_feedback_label.text = 'Please select an exercise first'
+            return
+        
+        if not self.is_training:
+            # Get selected camera index
+            camera_index = self.get_selected_camera_index()
+            
+            # Open camera
+            self.training_capture = cv2.VideoCapture(camera_index)
+            
+            if not self.training_capture.isOpened():
+                Logger.error(f"Failed to open camera {camera_index} for training")
+                return
+            
+            self.is_training = True
+            
+            # Set exercise in detector
+            self.exercise_detector.set_exercise(self.current_exercise_id)
+            
+            # Update UI
+            if 'training_start_button' in self.ids:
+                self.ids.training_start_button.disabled = True
+            if 'training_stop_button' in self.ids:
+                self.ids.training_stop_button.disabled = False
+            if 'exercise_spinner' in self.ids:
+                self.ids.exercise_spinner.disabled = True
+            if 'category_filter_spinner' in self.ids:
+                self.ids.category_filter_spinner.disabled = True
+            
+            # Schedule frame update
+            self.training_event = Clock.schedule_interval(self.update_training_frame, 1.0/30.0)
+            Logger.info(f"Training started for {self.selected_exercise.name}")
+    
+    def stop_training(self):
+        """Stop training mode."""
+        if self.is_training:
+            self.is_training = False
+            
+            # Stop scheduled updates
+            if self.training_event:
+                self.training_event.cancel()
+                self.training_event = None
+            
+            # Release camera
+            if self.training_capture:
+                self.training_capture.release()
+                self.training_capture = None
+            
+            # Clear display
+            if 'training_camera_display' in self.ids:
+                self.ids.training_camera_display.texture = None
+            if 'training_feedback_label' in self.ids:
+                self.ids.training_feedback_label.text = 'Training stopped'
+            
+            # Update UI
+            if 'training_start_button' in self.ids:
+                self.ids.training_start_button.disabled = False
+            if 'training_stop_button' in self.ids:
+                self.ids.training_stop_button.disabled = True
+            if 'exercise_spinner' in self.ids:
+                self.ids.exercise_spinner.disabled = False
+            if 'category_filter_spinner' in self.ids:
+                self.ids.category_filter_spinner.disabled = False
+            
+            Logger.info("Training stopped")
+    
+    def reset_training(self):
+        """Reset rep counter."""
+        if self.exercise_detector:
+            self.exercise_detector.reset_counter()
+            if 'training_reps_label' in self.ids:
+                self.ids.training_reps_label.text = '0'
+            Logger.info("Training counter reset")
+    
+    def update_training_frame(self, dt):
+        """Update training video frame with exercise detection."""
+        if not self.is_training or not self.training_capture or not self.exercise_detector:
+            return
+        
+        ret, frame = self.training_capture.read()
+        
+        if not ret:
+            Logger.error("Failed to read training frame")
+            return
+        
+        # Process frame for exercise detection
+        processed_frame, feedback = self.exercise_detector.process_frame(frame, self.current_exercise_id)
+        
+        # Update UI with feedback
+        if 'training_reps_label' in self.ids:
+            self.ids.training_reps_label.text = str(feedback['reps'])
+        if 'training_feedback_label' in self.ids:
+            self.ids.training_feedback_label.text = feedback['feedback']
+        
+        # Convert to texture and display
+        buf = cv2.flip(processed_frame, 0).tobytes()
+        texture = Texture.create(size=(processed_frame.shape[1], processed_frame.shape[0]), colorfmt='bgr')
+        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        
+        if 'training_camera_display' in self.ids:
+            self.ids.training_camera_display.texture = texture
+    
+    def add_current_exercise_to_workout(self):
+        """Add currently selected exercise to workout list."""
+        if not self.selected_exercise or not self.db:
+            if 'workout_status_label' in self.ids:
+                self.ids.workout_status_label.text = 'Select an exercise first'
+                self.ids.workout_status_label.color = CURRENT_THEME['bad']
+            return
+        
+        try:
+            self.db.add_exercise_to_workout(self.selected_exercise.id, sets=3, reps=10)
+            self.refresh_workout_list()
+            if 'workout_status_label' in self.ids:
+                self.ids.workout_status_label.text = f'Added {self.selected_exercise.name}'
+                self.ids.workout_status_label.color = CURRENT_THEME['good']
+            Logger.info(f"Added {self.selected_exercise.name} to workout")
+        except Exception as e:
+            Logger.error(f"Failed to add exercise to workout: {e}")
+            if 'workout_status_label' in self.ids:
+                self.ids.workout_status_label.text = 'Error adding exercise'
+                self.ids.workout_status_label.color = CURRENT_THEME['bad']
+    
+    def clear_workout(self):
+        """Clear all exercises from current workout."""
+        if not self.db:
+            return
+        
+        try:
+            self.db.clear_current_workout()
+            self.refresh_workout_list()
+            if 'workout_status_label' in self.ids:
+                self.ids.workout_status_label.text = 'Workout cleared'
+                self.ids.workout_status_label.color = CURRENT_THEME['good']
+            Logger.info("Cleared workout")
+        except Exception as e:
+            Logger.error(f"Failed to clear workout: {e}")
+    
+    def refresh_workout_list(self):
+        """Refresh the workout list display."""
+        if 'workout_list_container' not in self.ids or not self.db or not self.exercise_db:
+            return
+        
+        from kivy.metrics import dp, sp
+        from kivy.graphics import Color, RoundedRectangle
+        
+        # Get current workout
+        workout = self.db.get_current_workout()
+        
+        # Clear existing list
+        container = self.ids.workout_list_container
+        container.clear_widgets()
+        
+        if not workout:
+            no_workout_label = Label(
+                text='No exercises in workout\nClick + to add current exercise',
+                size_hint_y=None,
+                height=dp(60),
+                color=CURRENT_THEME['text_muted'],
+                font_size=sp(12),
+                halign='center',
+                valign='middle',
+            )
+            no_workout_label.bind(size=no_workout_label.setter('text_size'))
+            container.add_widget(no_workout_label)
+        else:
+            for item in workout:
+                exercise = self.exercise_db.get_exercise_by_id(item['exercise_id'])
+                if not exercise:
+                    continue
+                
+                # Create workout item row
+                item_box = BoxLayout(
+                    orientation='horizontal',
+                    size_hint_y=None,
+                    height=dp(48),
+                    spacing=dp(6),
+                    padding=[dp(8), dp(4)],
+                )
+                
+                # Background
+                with item_box.canvas.before:
+                    Color(*CURRENT_THEME['surface_variant'])
+                    bg_rect = RoundedRectangle(pos=item_box.pos, size=item_box.size, radius=[dp(6)])
+                item_box.bind(pos=lambda inst, val, r=bg_rect: setattr(r, 'pos', val))
+                item_box.bind(size=lambda inst, val, r=bg_rect: setattr(r, 'size', val))
+                
+                # Exercise name
+                name_label = Label(
+                    text=exercise.name,
+                    size_hint_x=0.5,
+                    font_size=sp(12),
+                    color=CURRENT_THEME['text'],
+                    halign='left',
+                    valign='middle',
+                )
+                name_label.bind(size=name_label.setter('text_size'))
+                
+                # Sets/Reps info
+                info_label = Label(
+                    text=f"{item['sets']}x{item['reps']}",
+                    size_hint_x=0.3,
+                    font_size=sp(11),
+                    color=CURRENT_THEME['text_muted'],
+                    halign='center',
+                    valign='middle',
+                )
+                info_label.bind(size=info_label.setter('text_size'))
+                
+                # Remove button
+                remove_btn = Button(
+                    text='✕',
+                    size_hint_x=0.2,
+                    size_hint_y=None,
+                    height=dp(32),
+                    font_size=sp(16),
+                    background_normal='',
+                    background_color=CURRENT_THEME['bad'],
+                )
+                remove_btn.bind(on_press=lambda btn, workout_id=item['id']: self.remove_exercise_from_workout(workout_id))
+                
+                item_box.add_widget(name_label)
+                item_box.add_widget(info_label)
+                item_box.add_widget(remove_btn)
+                
+                container.add_widget(item_box)
+    
+    def remove_exercise_from_workout(self, workout_id):
+        """Remove an exercise from the workout list."""
+        if not self.db:
+            return
+        
+        try:
+            self.db.remove_exercise_from_workout(workout_id)
+            self.refresh_workout_list()
+            if 'workout_status_label' in self.ids:
+                self.ids.workout_status_label.text = 'Exercise removed'
+                self.ids.workout_status_label.color = CURRENT_THEME['good']
+            Logger.info(f"Removed exercise {workout_id} from workout")
+        except Exception as e:
+            Logger.error(f"Failed to remove exercise from workout: {e}")
+
 
 class MainApp(App):
     """Main Kivy application."""
@@ -700,12 +1040,43 @@ class MainApp(App):
         """Change theme from button."""
         self.root.change_theme(theme_name)
     
+    def select_exercise(self, exercise_name):
+        """Select exercise from spinner."""
+        self.root.select_exercise(exercise_name)
+    
+    def filter_exercises_by_category(self, category):
+        """Filter exercises by category."""
+        self.root.filter_exercises_by_category(category)
+    
+    def start_training(self):
+        """Start training from button."""
+        self.root.start_training()
+    
+    def stop_training(self):
+        """Stop training from button."""
+        self.root.stop_training()
+    
+    def reset_training(self):
+        """Reset training counter from button."""
+        self.root.reset_training()
+    
+    def add_current_exercise_to_workout(self):
+        """Add current exercise to workout."""
+        self.root.add_current_exercise_to_workout()
+    
+    def clear_workout(self):
+        """Clear workout list."""
+        self.root.clear_workout()
+    
     def on_stop(self):
         """Clean up when app is closing."""
         if self.root:
             self.root.stop_tracking()
+            self.root.stop_training()
             if self.root.detector:
                 self.root.detector.release()
+            if self.root.exercise_detector:
+                self.root.exercise_detector.release()
         return True
 
 

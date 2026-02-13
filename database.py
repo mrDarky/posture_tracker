@@ -17,15 +17,41 @@ class SettingsDatabase:
         self.init_db()
     
     def init_db(self):
-        """Create settings table if it doesn't exist."""
+        """Create settings and training tables if they don't exist."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        
+        # Settings table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )
         ''')
+        
+        # Current workout table (exercises in current training session)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS current_workout (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exercise_id TEXT NOT NULL,
+                sets INTEGER DEFAULT 3,
+                reps INTEGER DEFAULT 10,
+                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Workout history table (completed workouts)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS workout_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exercise_id TEXT NOT NULL,
+                sets_completed INTEGER,
+                reps_completed INTEGER,
+                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -74,3 +100,100 @@ class SettingsDatabase:
         if value not in ['dark', 'light']:
             raise ValueError("Theme must be 'dark' or 'light'")
         self.set_setting('theme', value)
+    
+    # ===== Training/Workout Methods =====
+    
+    def add_exercise_to_workout(self, exercise_id, sets=3, reps=10):
+        """Add an exercise to current workout."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO current_workout (exercise_id, sets, reps)
+            VALUES (?, ?, ?)
+        ''', (exercise_id, sets, reps))
+        conn.commit()
+        conn.close()
+    
+    def remove_exercise_from_workout(self, workout_id):
+        """Remove an exercise from current workout."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM current_workout WHERE id = ?', (workout_id,))
+        conn.commit()
+        conn.close()
+    
+    def get_current_workout(self):
+        """Get all exercises in current workout."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, exercise_id, sets, reps, added_date FROM current_workout ORDER BY added_date')
+        results = cursor.fetchall()
+        conn.close()
+        
+        workout = []
+        for row in results:
+            workout.append({
+                'id': row[0],
+                'exercise_id': row[1],
+                'sets': row[2],
+                'reps': row[3],
+                'added_date': row[4]
+            })
+        return workout
+    
+    def clear_current_workout(self):
+        """Clear all exercises from current workout."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM current_workout')
+        conn.commit()
+        conn.close()
+    
+    def update_workout_exercise(self, workout_id, sets=None, reps=None):
+        """Update sets/reps for an exercise in current workout."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if sets is not None:
+            cursor.execute('UPDATE current_workout SET sets = ? WHERE id = ?', (sets, workout_id))
+        if reps is not None:
+            cursor.execute('UPDATE current_workout SET reps = ? WHERE id = ?', (reps, workout_id))
+        
+        conn.commit()
+        conn.close()
+    
+    def save_workout_to_history(self, exercise_id, sets_completed, reps_completed, notes=''):
+        """Save completed workout to history."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO workout_history (exercise_id, sets_completed, reps_completed, notes)
+            VALUES (?, ?, ?, ?)
+        ''', (exercise_id, sets_completed, reps_completed, notes))
+        conn.commit()
+        conn.close()
+    
+    def get_workout_history(self, limit=50):
+        """Get workout history."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, exercise_id, sets_completed, reps_completed, date, notes
+            FROM workout_history
+            ORDER BY date DESC
+            LIMIT ?
+        ''', (limit,))
+        results = cursor.fetchall()
+        conn.close()
+        
+        history = []
+        for row in results:
+            history.append({
+                'id': row[0],
+                'exercise_id': row[1],
+                'sets_completed': row[2],
+                'reps_completed': row[3],
+                'date': row[4],
+                'notes': row[5]
+            })
+        return history
