@@ -231,7 +231,6 @@ You may see some informational messages when starting the application. These are
 - `database.py`: SQLite database for settings and workout persistence
 - `posture_tracker.kv`: Kivy UI layout definition
 - `requirements.txt`: Python dependencies
-- `requirements.txt`: Python dependencies
 
 ## Dependencies
 
